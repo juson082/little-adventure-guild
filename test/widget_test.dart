@@ -8,6 +8,9 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
+    expect(find.text('양피지 열기'), findsNothing);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
     expect(find.text('양피지 열기'), findsOneWidget);
     await tester.ensureVisible(find.text('양피지 열기'));
     await tester.pumpAndSettle();
@@ -21,10 +24,8 @@ void main() {
     expect(find.text('완료한 퀘스트'), findsOneWidget);
     await tester.pumpWidget(const GuildApp(key: ValueKey('restart')));
     await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
     expect(find.text('완료한 퀘스트'), findsOneWidget);
   });
 }
-
-
-
-
