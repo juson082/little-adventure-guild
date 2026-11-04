@@ -18,8 +18,15 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  fonts:
+    - family: Galmuri
+      fonts:
+        - asset: assets/fonts/Galmuri11.ttf
   assets:
     - assets/guild_interior_v3.png
+    - assets/fonts/Galmuri-LICENSE.txt
+
+
 
 
 

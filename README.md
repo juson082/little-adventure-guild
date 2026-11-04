@@ -38,3 +38,9 @@ Flutter stable과 Android Studio/Android SDK가 필요합니다. 이 작업 PC�
 ## 첫 실행 안내
 
 처음 실행하면 길드주인의 대화로 하루 한 의뢰, 완료·실패 보고, 인증 없는 신뢰 규칙, 골드와 길드 꾸미기를 안내합니다. 모든 이야기를 읽고 모험을 시작하면 완료 상태를 기기에 저장합니다. 앱 데이터를 삭제하면 안내가 다시 표시됩니다. 대사는 `lib/guild_content.dart`의 `guildTutorial`에서 수정할 수 있습니다.
+
+## 글꼴과 움직임
+
+앱은 Lee Minseo(quiple)의 Galmuri11을 사용합니다. 한글·라틴 문자·가나 및 일부 한자를 지원하며, 글꼴에 없는 문자는 기기의 대체 글꼴로 표시됩니다. 새 언어를 추가할 때는 해당 언어의 글리프와 가독성을 별도로 확인해야 합니다. 글꼴은 SIL Open Font License 1.1이며, 원문은 `assets/fonts/Galmuri-LICENSE.txt`와 앱의 길드 메뉴 > 오픈소스 라이선스에서 확인할 수 있습니다. 출처: https://github.com/quiple/galmuri
+
+길드의 등불은 은은하게 깜빡입니다. 기기의 애니메이션 줄이기 설정이 활성화되면 이 효과를 멈춥니다.

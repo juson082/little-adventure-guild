@@ -2,10 +2,19 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'guild_content.dart';
 
-void main() => runApp(const GuildApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(['Galmuri'],
+        await rootBundle.loadString('assets/fonts/Galmuri-LICENSE.txt'));
+  });
+  runApp(const GuildApp());
+}
 
 const ink = Color(0xff493a31);
 const brown = Color(0xff75533d);
@@ -21,7 +30,7 @@ class GuildApp extends StatelessWidget {
             useMaterial3: true,
             colorScheme: ColorScheme.fromSeed(seedColor: brown, surface: cream),
             scaffoldBackgroundColor: const Color(0xfff6eedc),
-            fontFamily: null),
+            fontFamily: 'Galmuri'),
         home: const GuildHome(),
       );
 }
@@ -376,6 +385,8 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                       child: CustomPaint(
                           painter:
                               DecorationPainter(today!['active'] as String)))),
+            const Positioned.fill(
+                child: IgnorePointer(child: GuildLanternGlow())),
             Positioned.fill(
                 child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -419,13 +430,18 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                       iconColor: const Color(0xffffedc7),
                       shape: const RoundedRectangleBorder(),
                       onSelected: (v) {
-                        if (v == 'decorate') {
+                        if (v == 'licenses') {
+                          showLicensePage(
+                              context: context, applicationName: '작은 모험 길드');
+                        } else if (v == 'decorate') {
                           showDecorations();
                         } else {
                           showInfo(v == 'support');
                         }
                       },
                       itemBuilder: (_) => const [
+                            PopupMenuItem(
+                                value: 'licenses', child: Text('오픈소스 라이선스')),
                             PopupMenuItem(
                                 value: 'decorate', child: Text('길드 꾸미기')),
                             PopupMenuItem(
@@ -638,6 +654,74 @@ class DecorationPainter extends CustomPainter {
       active != oldDelegate.active;
 }
 
+class GuildLanternGlow extends StatefulWidget {
+  const GuildLanternGlow({super.key});
+  @override
+  State<GuildLanternGlow> createState() => _GuildLanternGlowState();
+}
+
+class _GuildLanternGlowState extends State<GuildLanternGlow>
+    with WidgetsBindingObserver {
+  Timer? timer;
+  int frame = 0;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    start();
+  }
+
+  void start() {
+    timer?.cancel();
+    timer = Timer.periodic(const Duration(milliseconds: 800), (_) {
+      if (mounted && !MediaQuery.disableAnimationsOf(context)) {
+        setState(() => frame = (frame + 1) % 4);
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      start();
+    } else {
+      timer?.cancel();
+    }
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(painter: LanternGlowPainter(frame));
+}
+
+class LanternGlowPainter extends CustomPainter {
+  final int frame;
+  const LanternGlowPainter(this.frame);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final alpha = [0.10, 0.18, 0.13, 0.21][frame];
+    final p = Paint()..color = const Color(0xffffd37c).withValues(alpha: alpha);
+    final u = size.width / 120;
+    canvas.drawRect(
+        Rect.fromLTWH(size.width * .107, size.height * .317, u * 2, u * 3), p);
+    canvas.drawRect(
+        Rect.fromLTWH(size.width * .126, size.height * .31, u, u * 4), p);
+    canvas.drawRect(
+        Rect.fromLTWH(size.width * .09, size.height * .35, u, u), p);
+  }
+
+  @override
+  bool shouldRepaint(covariant LanternGlowPainter oldDelegate) =>
+      oldDelegate.frame != frame;
+}
+
 class PixelPanel extends StatelessWidget {
   final Widget child;
   final bool parchment;
@@ -713,22 +797,36 @@ class ScrollPainter extends CustomPainter {
   const ScrollPainter();
   @override
   void paint(Canvas canvas, Size size) {
-    final x = size.width / 20, y = size.height / 16;
-    void box(int l, int t, int w, int h, Color c) => canvas.drawRect(
-        Rect.fromLTWH(l * x, t * y, w * x, h * y), Paint()..color = c);
-    const edge = Color(0xff684530),
-        mid = Color(0xffb48c64),
-        paper = Color(0xfff0dfb9),
-        seal = Color(0xffa54c38);
-    box(3, 2, 14, 12, edge);
-    box(4, 3, 12, 10, mid);
-    box(5, 4, 10, 8, paper);
-    box(2, 2, 3, 3, edge);
-    box(15, 11, 3, 3, edge);
-    box(6, 5, 8, 1, mid);
-    box(6, 7, 6, 1, mid);
-    box(6, 9, 4, 1, mid);
-    box(12, 9, 2, 2, seal);
+    final unit = min(size.width / 32, size.height / 28);
+    final ox = (size.width - unit * 32) / 2, oy = (size.height - unit * 28) / 2;
+    void box(int x, int y, int w, int h, Color c) => canvas.drawRect(
+        Rect.fromLTWH(ox + x * unit, oy + y * unit, w * unit, h * unit),
+        Paint()..color = c);
+    const shadow = Color(0xff2f1c13),
+        edge = Color(0xff68412a),
+        wood = Color(0xff99643f),
+        mid = Color(0xffc69e6e),
+        paper = Color(0xffefdbb2),
+        light = Color(0xffffeac1),
+        seal = Color(0xffa84e37);
+    box(5, 5, 23, 19, shadow);
+    box(4, 3, 23, 19, edge);
+    box(6, 4, 19, 17, mid);
+    box(7, 5, 17, 15, paper);
+    box(8, 6, 15, 1, light);
+    box(3, 2, 4, 5, edge);
+    box(4, 3, 2, 3, wood);
+    box(24, 18, 5, 5, edge);
+    box(25, 19, 2, 3, wood);
+    box(9, 8, 12, 1, mid);
+    box(9, 10, 10, 1, mid);
+    box(9, 12, 11, 1, mid);
+    box(9, 14, 7, 1, mid);
+    box(20, 15, 3, 3, edge);
+    box(20, 15, 2, 2, seal);
+    box(20, 15, 1, 1, const Color(0xffdb8060));
+    box(8, 18, 4, 1, light);
+    box(16, 6, 3, 1, light);
   }
 
   @override
