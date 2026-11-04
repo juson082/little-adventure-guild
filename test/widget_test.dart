@@ -28,4 +28,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('완료한 퀘스트'), findsOneWidget);
   });
+  testWidgets('길드 메뉴에서 안내를 열고 닫는다', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const GuildApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('길드 메뉴'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('길드 지원하기'));
+    await tester.pumpAndSettle();
+    expect(find.text('작은 보급품'), findsOneWidget);
+    await tester.tap(find.text('돌아가기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('길드 메뉴'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('의뢰 제안하기'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('의뢰 접수는 준비 중'), findsOneWidget);
+  });
 }

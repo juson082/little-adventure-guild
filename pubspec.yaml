@@ -19,7 +19,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/guild_interior.png
+    - assets/guild_interior_v3.png
+
+
 
 
 
