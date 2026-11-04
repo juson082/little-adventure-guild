@@ -92,6 +92,10 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
         var index = Random().nextInt(quests.length);
         if (index == saved?['quest']) index = (index + 1) % quests.length;
         saved = {
+          'gold': saved?['gold'] ?? 0,
+          'unlocked': saved?['unlocked'] ?? <String>[],
+          'active': saved?['active'] ?? '',
+          'failed': false,
           'date': dateKey,
           'quest': index,
           'opened': false,
@@ -119,8 +123,15 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
       await load();
       return;
     }
+    if ((key == 'completed' || key == 'failed') &&
+        (today!['completed'] == true ||
+            today!['failed'] == true ||
+            today!['opened'] != true)) {
+      return;
+    }
     setState(() => busy = true);
     final next = {...today!, key: true};
+    if (key == 'completed') next['gold'] = (today!['gold'] as int? ?? 0) + 10;
     try {
       if (!await prefs!.setString('today', jsonEncode(next))) {
         throw Exception('저장 실패');
@@ -134,6 +145,106 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     } finally {
       if (mounted) setState(() => busy = false);
     }
+  }
+
+  static const decorations = <(String, String, int)>[
+    ('plant', '작은 화분', 10),
+    ('banner', '길드 깃발', 20),
+    ('lantern', '따뜻한 등불', 30),
+  ];
+
+  Future<bool> selectDecoration(String id, int price) async {
+    if (busy || today == null || prefs == null) return false;
+    if (today!['date'] != dateKey) {
+      await load();
+      return false;
+    }
+    final owned = List<String>.from(today!['unlocked'] as List? ?? []);
+    var gold = today!['gold'] as int? ?? 0;
+    if (!owned.contains(id)) {
+      if (gold < price) return false;
+      gold -= price;
+      owned.add(id);
+    }
+    final active = today!['active'] == id ? '' : id;
+    final next = {...today!, 'gold': gold, 'unlocked': owned, 'active': active};
+    setState(() => busy = true);
+    try {
+      if (!await prefs!.setString('today', jsonEncode(next))) {
+        throw Exception('저장 실패');
+      }
+      if (mounted) setState(() => today = next);
+      return true;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('꾸미기 기록을 저장하지 못했어요.')));
+      }
+      return false;
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  void showDecorations() {
+    showDialog<void>(
+        context: context,
+        builder: (dialogContext) =>
+            StatefulBuilder(builder: (context, refresh) {
+              final owned =
+                  List<String>.from(today?['unlocked'] as List? ?? []);
+              final gold = today?['gold'] as int? ?? 0;
+              return Dialog(
+                  backgroundColor: Colors.transparent,
+                  insetPadding: const EdgeInsets.all(24),
+                  child: SingleChildScrollView(
+                      child: PixelPanel(
+                          child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                        Row(children: [
+                          const Expanded(
+                              child: Text('길드 꾸미기',
+                                  style: TextStyle(
+                                      color: ink,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800))),
+                          IconButton(
+                              tooltip: '닫기',
+                              onPressed: () => Navigator.pop(dialogContext),
+                              icon: const Icon(Icons.close, color: brown))
+                        ]),
+                        Text('보유 골드  $gold G',
+                            style: const TextStyle(
+                                color: brown, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        const Text('모험으로 모은 골드로 길드를 꾸며 보세요. 장식은 하나씩 놓을 수 있어요.',
+                            style: TextStyle(
+                                color: ink, height: 1.6, fontSize: 13)),
+                        const SizedBox(height: 16),
+                        for (final (id, name, price) in decorations) ...[
+                          GuildButton(
+                              label: owned.contains(id)
+                                  ? (today?['active'] == id
+                                      ? '$name · 치우기'
+                                      : '$name · 놓기')
+                                  : '$name · $price G',
+                              onPressed:
+                                  busy || (!owned.contains(id) && gold < price)
+                                      ? null
+                                      : () async {
+                                          await selectDecoration(id, price);
+                                          if (context.mounted) refresh(() {});
+                                        }),
+                          const SizedBox(height: 7),
+                        ],
+                        const SizedBox(height: 8),
+                        GuildButton(
+                            label: '돌아가기',
+                            onPressed: () => Navigator.pop(dialogContext)),
+                      ]))));
+            }));
   }
 
   void showInfo(bool support) {
@@ -203,6 +314,8 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     final item = today == null ? null : quests[today!['quest'] as int];
     final opened = today?['opened'] == true;
     final completed = today?['completed'] == true;
+    final failed = today?['failed'] == true;
+    final resolved = completed || failed;
     return Scaffold(
       backgroundColor: const Color(0xff291c15),
       body: SafeArea(
@@ -217,6 +330,12 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                     fit: BoxFit.cover,
                     alignment: Alignment.topCenter,
                     filterQuality: FilterQuality.none)),
+            if (today?['active'] != null && today?['active'] != '')
+              Positioned.fill(
+                  child: IgnorePointer(
+                      child: CustomPaint(
+                          painter:
+                              DecorationPainter(today!['active'] as String)))),
             Positioned.fill(
                 child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -248,13 +367,27 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                               shadows: [
                                 Shadow(blurRadius: 5, color: Colors.black)
                               ]))),
+                  Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Text("${today?['gold'] ?? 0} G",
+                          style: const TextStyle(
+                              color: Color(0xffffedc7),
+                              fontWeight: FontWeight.bold))),
                   PopupMenuButton<String>(
                       tooltip: '길드 메뉴',
                       color: cream,
                       iconColor: const Color(0xffffedc7),
                       shape: const RoundedRectangleBorder(),
-                      onSelected: (v) => showInfo(v == 'support'),
+                      onSelected: (v) {
+                        if (v == 'decorate') {
+                          showDecorations();
+                        } else {
+                          showInfo(v == 'support');
+                        }
+                      },
                       itemBuilder: (_) => const [
+                            PopupMenuItem(
+                                value: 'decorate', child: Text('길드 꾸미기')),
                             PopupMenuItem(
                                 value: 'support', child: Text('길드 지원하기')),
                             PopupMenuItem(
@@ -362,16 +495,28 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                         fontSize: 15,
                                         height: 1.7)),
                                 const SizedBox(height: 22),
-                                GuildButton(
-                                    label: completed ? '완료한 퀘스트' : '퀘스트 완료',
-                                    onPressed: completed || busy
-                                        ? null
-                                        : () => update('completed')),
+                                if (!resolved) ...[
+                                  GuildButton(
+                                      label: '퀘스트 완료 · +10 G',
+                                      onPressed: busy
+                                          ? null
+                                          : () => update('completed')),
+                                  const SizedBox(height: 8),
+                                  GuildButton(
+                                      label: '이번에는 못 했어요',
+                                      onPressed:
+                                          busy ? null : () => update('failed')),
+                                ] else
+                                  GuildButton(
+                                      label: completed ? '완료한 퀘스트' : '오늘은 쉬어가요',
+                                      onPressed: null),
                                 const SizedBox(height: 12),
                                 Text(
                                     completed
-                                        ? '오늘의 작은 모험을 함께해 주어 고마워요.'
-                                        : '오늘 하지 않아도 괜찮아요. 마음이 가는 대로요.',
+                                        ? '작은 모험의 보상으로 10 G를 받았어요.'
+                                        : failed
+                                            ? '괜찮아요. 내일 또 다른 모험이 기다려요.'
+                                            : '완료 여부는 스스로 선택해 주세요. 하지 않아도 괜찮아요.',
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
                                         color: Color(0xff957858),
@@ -391,6 +536,44 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
       ))),
     );
   }
+}
+
+class DecorationPainter extends CustomPainter {
+  final String active;
+  const DecorationPainter(this.active);
+  @override
+  void paint(Canvas canvas, Size size) {
+    void rect(double x, double y, double w, double h, Color color) =>
+        canvas.drawRect(
+            Rect.fromLTWH(size.width * x, size.height * y, size.width * w,
+                size.height * h),
+            Paint()..color = color);
+    const dark = Color(0xff573c2b),
+        gold = Color(0xffd4a960),
+        green = Color(0xff70885a),
+        red = Color(0xff9f5b47);
+    if (active == 'plant') {
+      rect(.79, .72, .11, .07, dark);
+      rect(.80, .70, .09, .05, red);
+      rect(.825, .62, .035, .08, green);
+      rect(.80, .64, .035, .035, green);
+      rect(.85, .62, .035, .035, green);
+    } else if (active == 'banner') {
+      rect(.05, .22, .13, .03, dark);
+      rect(.06, .25, .11, .19, green);
+      rect(.08, .29, .07, .025, gold);
+      rect(.10, .275, .025, .08, gold);
+    } else if (active == 'lantern') {
+      rect(.79, .68, .09, .02, dark);
+      rect(.81, .60, .05, .08, dark);
+      rect(.82, .61, .03, .06, gold);
+      rect(.81, .58, .05, .02, dark);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant DecorationPainter oldDelegate) =>
+      active != oldDelegate.active;
 }
 
 class PixelPanel extends StatelessWidget {
