@@ -5,7 +5,7 @@ import 'package:little_adventure_guild/main.dart';
 
 void main() {
   testWidgets('퀘스트를 열고 완료한 상태가 다시 열어도 유지된다', (tester) async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'tutorial_complete': true});
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     expect(find.text('양피지 열기'), findsNothing);
@@ -16,21 +16,21 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('양피지 열기'));
     await tester.pumpAndSettle();
-    expect(find.text('퀘스트 완료 · +10 G'), findsOneWidget);
-    await tester.ensureVisible(find.text('퀘스트 완료 · +10 G'));
+    expect(find.text('퀘스트 완료'), findsOneWidget);
+    await tester.ensureVisible(find.text('퀘스트 완료'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('퀘스트 완료 · +10 G'));
+    await tester.tap(find.text('퀘스트 완료'));
     await tester.pumpAndSettle();
-    expect(find.text('완료한 퀘스트'), findsOneWidget);
+    expect(find.text('퀘스트 완료'), findsOneWidget);
     expect(find.text('10 G'), findsOneWidget);
     await tester.pumpWidget(const GuildApp(key: ValueKey('restart')));
     await tester.pumpAndSettle();
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
-    expect(find.text('완료한 퀘스트'), findsOneWidget);
+    expect(find.text('퀘스트 완료'), findsOneWidget);
   });
   testWidgets('길드 메뉴에서 안내를 열고 닫는다', (tester) async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'tutorial_complete': true});
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('길드 메뉴'));
@@ -51,15 +51,16 @@ void main() {
     final date =
         '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
     SharedPreferences.setMockInitialValues({
+      'tutorial_complete': true,
       'today': '{"date":"$date","quest":0,"opened":true,"completed":false}'
     });
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('퀘스트 완료 · +10 G'));
+    await tester.ensureVisible(find.text('퀘스트 완료'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('퀘스트 완료 · +10 G'));
+    await tester.tap(find.text('퀘스트 완료'));
     await tester.pumpAndSettle();
     await tester.drag(find.byType(Scrollable).first, const Offset(0, 900));
     await tester.pumpAndSettle();
@@ -88,6 +89,7 @@ void main() {
     final date =
         '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
     SharedPreferences.setMockInitialValues({
+      'tutorial_complete': true,
       'today':
           '{"date":"$date","quest":0,"opened":true,"completed":false,"gold":20}'
     });
@@ -95,11 +97,38 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('이번에는 못 했어요'));
+    await tester.ensureVisible(find.text('퀘스트 실패'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('이번에는 못 했어요'));
+    await tester.tap(find.text('퀘스트 실패'));
     await tester.pumpAndSettle();
-    expect(find.text('오늘은 쉬어가요'), findsOneWidget);
+    expect(find.text('퀘스트 실패'), findsOneWidget);
     expect(find.text('20 G'), findsOneWidget);
+  });
+  testWidgets('첫 실행에 길드주인의 안내가 나오고 완료 후 다시 나오지 않는다', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const GuildApp());
+    await tester.pumpAndSettle();
+    expect(find.textContaining('새로운 모험가로군'), findsOneWidget);
+    expect(find.text('양피지 열기'), findsNothing);
+    for (var i = 0; i < 5; i++) {
+      await tester.ensureVisible(find.text('다음 이야기'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('다음 이야기'));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('모험 시작하기'), findsOneWidget);
+    await tester.ensureVisible(find.text('모험 시작하기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('모험 시작하기'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.text('양피지 열기'), findsOneWidget);
+    await tester.pumpWidget(const GuildApp(key: ValueKey('tutorial restart')));
+    await tester.pumpAndSettle();
+    expect(find.text('다음 이야기'), findsNothing);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.text('양피지 열기'), findsOneWidget);
   });
 }

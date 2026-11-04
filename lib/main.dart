@@ -41,6 +41,8 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   Timer? dateTimer;
   Timer? greetingTimer;
   bool greetingFinished = false;
+  bool? tutorialComplete;
+  int tutorialStep = 0;
 
   String get dateKey {
     final d = DateTime.now();
@@ -52,11 +54,6 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     load();
-    greetingTimer = Timer(
-        Duration(milliseconds: max(3000, greeting.runes.length * 150 + 1000)),
-        () {
-      if (mounted) setState(() => greetingFinished = true);
-    });
     dateTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (today != null && today!['date'] != dateKey && !busy) load();
     });
@@ -110,10 +107,53 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
           prefs = store;
           today = saved;
           error = null;
+          tutorialComplete ??= store.getBool('tutorial_complete') ?? false;
         });
+      }
+      if (tutorialComplete == true &&
+          !greetingFinished &&
+          greetingTimer == null) {
+        startGreeting();
       }
     } catch (_) {
       if (mounted) setState(() => error = '오늘의 의뢰를 불러오지 못했어요. 다시 시도해 주세요.');
+    }
+  }
+
+  void startGreeting() {
+    greetingTimer?.cancel();
+    greetingTimer = Timer(
+        Duration(milliseconds: max(3000, greeting.runes.length * 150 + 1000)),
+        () {
+      if (mounted) setState(() => greetingFinished = true);
+    });
+  }
+
+  Future<void> advanceTutorial() async {
+    if (busy || prefs == null) return;
+    if (tutorialStep < guildTutorial.length - 1) {
+      setState(() => tutorialStep++);
+      return;
+    }
+    setState(() => busy = true);
+    try {
+      if (!await prefs!.setBool('tutorial_complete', true)) {
+        throw Exception('저장 실패');
+      }
+      if (mounted) {
+        setState(() {
+          tutorialComplete = true;
+          greetingFinished = false;
+        });
+      }
+      startGreeting();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('안내 진행 상태를 저장하지 못했어요. 다시 시도해 주세요.')));
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
     }
   }
 
@@ -413,7 +453,10 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: .5)),
                             const SizedBox(height: 7),
-                            Text(greeting,
+                            Text(
+                                tutorialComplete == false
+                                    ? guildTutorial[tutorialStep]
+                                    : greeting,
                                 style: const TextStyle(
                                     color: ink,
                                     fontSize: 16,
@@ -421,7 +464,19 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                     height: 1.6)),
                           ])),
                       const SizedBox(height: 20),
-                      if (error != null) ...[
+                      if (tutorialComplete == false) ...[
+                        Center(
+                            child: Text(
+                                '${tutorialStep + 1} / ${guildTutorial.length}',
+                                style: const TextStyle(
+                                    color: Color(0xffc8ae8b), fontSize: 12))),
+                        const SizedBox(height: 12),
+                        GuildButton(
+                            label: tutorialStep == guildTutorial.length - 1
+                                ? '모험 시작하기'
+                                : '다음 이야기',
+                            onPressed: busy ? null : advanceTutorial),
+                      ] else if (error != null) ...[
                         Text(error!,
                             style: const TextStyle(color: Color(0xffffd3ae))),
                         TextButton(onPressed: load, child: const Text('다시 시도')),
@@ -496,19 +551,26 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                         height: 1.7)),
                                 const SizedBox(height: 22),
                                 if (!resolved) ...[
+                                  const Center(
+                                      child: Text('완료 보상 · 10 G',
+                                          style: TextStyle(
+                                              color: Color(0xff92704c),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700))),
+                                  const SizedBox(height: 10),
                                   GuildButton(
-                                      label: '퀘스트 완료 · +10 G',
+                                      label: '퀘스트 완료',
                                       onPressed: busy
                                           ? null
                                           : () => update('completed')),
                                   const SizedBox(height: 8),
                                   GuildButton(
-                                      label: '이번에는 못 했어요',
+                                      label: '퀘스트 실패',
                                       onPressed:
                                           busy ? null : () => update('failed')),
                                 ] else
                                   GuildButton(
-                                      label: completed ? '완료한 퀘스트' : '오늘은 쉬어가요',
+                                      label: completed ? '퀘스트 완료' : '퀘스트 실패',
                                       onPressed: null),
                                 const SizedBox(height: 12),
                                 Text(
