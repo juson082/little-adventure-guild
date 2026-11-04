@@ -475,6 +475,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                     : greeting,
                                 style: const TextStyle(
                                     color: ink,
+                                    fontFamily: 'sans-serif',
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                     height: 1.6)),
@@ -515,26 +516,31 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                     color: Color(0xffdbc49d), fontSize: 13))),
                         const SizedBox(height: 8),
                         Center(
-                            child: Semantics(
-                                button: true,
-                                label: '양피지 열기',
-                                child: InkWell(
-                                    onTap: busy ? null : () => update('opened'),
-                                    child: const SizedBox(
-                                        width: 128,
-                                        height: 108,
-                                        child: CustomPaint(
-                                            painter: ScrollPainter()))))),
-                        Center(
-                            child: SizedBox(
-                                width: 180,
-                                child: GuildButton(
-                                    label: '양피지 열기',
-                                    onPressed:
-                                        busy ? null : () => update('opened')))),
-                        const SizedBox(height: 9),
+                            child: TextButton(
+                          onPressed: busy ? null : () => update('opened'),
+                          style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xfff4ddaf),
+                              shape: const RoundedRectangleBorder(),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 4)),
+                          child: const Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                    width: 174,
+                                    height: 142,
+                                    child:
+                                        CustomPaint(painter: ScrollPainter())),
+                                SizedBox(height: 4),
+                                Text('양피지 열기',
+                                    style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700)),
+                              ]),
+                        )),
+                        const SizedBox(height: 4),
                         const Center(
-                            child: Text('천천히 열어 보세요',
+                            child: Text('봉인을 눌러 의뢰를 확인하세요',
                                 style: TextStyle(
                                     color: Color(0xffaa9275), fontSize: 12))),
                       ] else
@@ -563,6 +569,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
                                         color: Color(0xff70533a),
+                                        fontFamily: 'sans-serif',
                                         fontSize: 15,
                                         height: 1.7)),
                                 const SizedBox(height: 22),
@@ -750,6 +757,12 @@ class PixelPanelPainter extends CustomPainter {
     rect(6, 6, w - 6, h - 6, const Color(0xfff4e6c5));
     if (parchment) {
       rect(9, 9, w - 9, h - 9, const Color(0xfff8edcf));
+      final grain = Paint()..color = const Color(0x18a88354);
+      for (var y = 22.0; y < h - 16; y += 28) {
+        canvas.drawRect(Rect.fromLTWH(12, y, 5, 1.5), grain);
+        canvas.drawRect(Rect.fromLTWH(w - 20, y + 9, 6, 1.5), grain);
+      }
+      rect(w / 2 - 12, 12, w / 2 + 12, 14, const Color(0xff87916b));
       rect(10, 11, 24, 14, const Color(0xffd2b588));
       rect(w - 24, 11, w - 10, 14, const Color(0xffd2b588));
       rect(10, h - 14, 24, h - 11, const Color(0xffd2b588));
@@ -768,29 +781,49 @@ class GuildButton extends StatelessWidget {
   const GuildButton({super.key, required this.label, required this.onPressed});
   @override
   Widget build(BuildContext context) => Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-            color: onPressed == null
-                ? const Color(0xffbaa47f)
-                : const Color(0xff63432f),
-            border: Border.all(color: const Color(0xff3e2a1d), width: 2),
-            boxShadow: const [
-              BoxShadow(color: Color(0xff160f0b), offset: Offset(3, 4))
-            ]),
-        child: TextButton(
+        padding: const EdgeInsets.only(bottom: 4, right: 4),
+        child: CustomPaint(
+          painter: WoodButtonPainter(enabled: onPressed != null),
+          child: TextButton(
             onPressed: onPressed,
             style: TextButton.styleFrom(
                 foregroundColor: const Color(0xffffefd1),
                 disabledForegroundColor: const Color(0xffe6dbc5),
                 shape: const RoundedRectangleBorder(),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 13)),
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
             child: Text(label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w700))),
-      ));
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+          ),
+        ),
+      );
+}
+
+class WoodButtonPainter extends CustomPainter {
+  final bool enabled;
+  const WoodButtonPainter({required this.enabled});
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    void rect(double l, double t, double r, double b, Color color) =>
+        canvas.drawRect(Rect.fromLTRB(l, t, r, b), Paint()..color = color);
+    rect(4, 5, w + 4, h + 5, const Color(0xff160f0b));
+    rect(0, 0, w, h, const Color(0xff3e291c));
+    rect(3, 3, w - 3, h - 3,
+        enabled ? const Color(0xff775139) : const Color(0xffa99475));
+    rect(5, 5, w - 5, 7,
+        enabled ? const Color(0xffa97b50) : const Color(0xffc4b295));
+    rect(5, h - 8, w - 5, h - 5,
+        enabled ? const Color(0xff563623) : const Color(0xff8e7b62));
+    rect(9, h / 2 - 2, 13, h / 2 + 2, const Color(0xffd4ad72));
+    rect(w - 13, h / 2 - 2, w - 9, h / 2 + 2, const Color(0xffd4ad72));
+  }
+
+  @override
+  bool shouldRepaint(covariant WoodButtonPainter oldDelegate) =>
+      enabled != oldDelegate.enabled;
 }
 
 class ScrollPainter extends CustomPainter {
@@ -809,24 +842,20 @@ class ScrollPainter extends CustomPainter {
         paper = Color(0xffefdbb2),
         light = Color(0xffffeac1),
         seal = Color(0xffa84e37);
-    box(5, 5, 23, 19, shadow);
-    box(4, 3, 23, 19, edge);
-    box(6, 4, 19, 17, mid);
-    box(7, 5, 17, 15, paper);
-    box(8, 6, 15, 1, light);
-    box(3, 2, 4, 5, edge);
-    box(4, 3, 2, 3, wood);
-    box(24, 18, 5, 5, edge);
-    box(25, 19, 2, 3, wood);
-    box(9, 8, 12, 1, mid);
-    box(9, 10, 10, 1, mid);
-    box(9, 12, 11, 1, mid);
-    box(9, 14, 7, 1, mid);
-    box(20, 15, 3, 3, edge);
-    box(20, 15, 2, 2, seal);
-    box(20, 15, 1, 1, const Color(0xffdb8060));
-    box(8, 18, 4, 1, light);
-    box(16, 6, 3, 1, light);
+    box(5, 8, 23, 14, shadow);
+    box(4, 6, 23, 14, edge);
+    box(6, 7, 19, 12, mid);
+    box(7, 8, 17, 10, paper);
+    box(8, 9, 15, 1, light);
+    box(3, 4, 4, 18, edge);
+    box(4, 5, 2, 16, wood);
+    box(24, 4, 4, 18, edge);
+    box(25, 5, 2, 16, wood);
+    box(13, 7, 5, 12, edge);
+    box(14, 7, 3, 12, const Color(0xff8d9b6b));
+    box(12, 11, 7, 6, edge);
+    box(13, 12, 5, 4, seal);
+    box(14, 12, 2, 1, const Color(0xffdf8760));
   }
 
   @override
