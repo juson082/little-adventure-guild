@@ -1,3 +1,5 @@
+import 'package:little_adventure_guild/guild_content.dart';
+import 'package:little_adventure_guild/translations.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -112,7 +114,7 @@ void main() {
     SharedPreferences.setMockInitialValues({'language_override': 'ko'});
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
-    expect(find.textContaining('새로운 모험가로군'), findsOneWidget);
+    expect(find.textContaining('새로운 모험가로구나'), findsOneWidget);
     expect(find.text('양피지 열기'), findsNothing);
     for (var i = 0; i < 5; i++) {
       await tester.ensureVisible(find.text('다음 이야기'));
@@ -182,5 +184,18 @@ void main() {
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     expect(find.text('Little Adventure Guild'), findsOneWidget);
+  });
+  test('인사와 튜토리얼 및 예시 퀘스트에 영어·일본어 번역이 있다', () {
+    final content = [
+      ...guildGreetings,
+      ...guildTutorial,
+      for (final q in quests) ...[q.$1, q.$2]
+    ];
+    for (final language in ['en', 'ja']) {
+      for (final source in content) {
+        expect(translations[language]!.containsKey(source), isTrue,
+            reason: '$language: $source');
+      }
+    }
   });
 }
