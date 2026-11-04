@@ -5,7 +5,8 @@ import 'package:little_adventure_guild/main.dart';
 
 void main() {
   testWidgets('퀘스트를 열고 완료한 상태가 다시 열어도 유지된다', (tester) async {
-    SharedPreferences.setMockInitialValues({'tutorial_complete': true});
+    SharedPreferences.setMockInitialValues(
+        {'tutorial_complete': true, 'language_override': 'ko'});
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     expect(find.text('양피지 열기'), findsNothing);
@@ -30,7 +31,8 @@ void main() {
     expect(find.text('퀘스트 완료'), findsOneWidget);
   });
   testWidgets('길드 메뉴에서 안내를 열고 닫는다', (tester) async {
-    SharedPreferences.setMockInitialValues({'tutorial_complete': true});
+    SharedPreferences.setMockInitialValues(
+        {'tutorial_complete': true, 'language_override': 'ko'});
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('길드 메뉴'));
@@ -52,6 +54,7 @@ void main() {
         '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
     SharedPreferences.setMockInitialValues({
       'tutorial_complete': true,
+      'language_override': 'ko',
       'today': '{"date":"$date","quest":0,"opened":true,"completed":false}'
     });
     await tester.pumpWidget(const GuildApp());
@@ -90,6 +93,7 @@ void main() {
         '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
     SharedPreferences.setMockInitialValues({
       'tutorial_complete': true,
+      'language_override': 'ko',
       'today':
           '{"date":"$date","quest":0,"opened":true,"completed":false,"gold":20}'
     });
@@ -105,7 +109,7 @@ void main() {
     expect(find.text('20 G'), findsOneWidget);
   });
   testWidgets('첫 실행에 길드주인의 안내가 나오고 완료 후 다시 나오지 않는다', (tester) async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'language_override': 'ko'});
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     expect(find.textContaining('새로운 모험가로군'), findsOneWidget);
@@ -130,5 +134,53 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
     expect(find.text('양피지 열기'), findsOneWidget);
+  });
+  testWidgets('지원하지 않는 기기 언어는 영어로 표시한다', (tester) async {
+    tester.binding.platformDispatcher.localeTestValue = const Locale('fr');
+    addTearDown(tester.binding.platformDispatcher.clearLocaleTestValue);
+    SharedPreferences.setMockInitialValues({'tutorial_complete': true});
+    await tester.pumpWidget(const GuildApp());
+    await tester.pumpAndSettle();
+    expect(find.text('Little Adventure Guild'), findsOneWidget);
+    expect(find.text('Welcome, adventurer.'), findsOneWidget);
+  });
+  testWidgets('언어를 바꾸면 저장되고 기기 설정으로 되돌릴 수 있다', (tester) async {
+    tester.binding.platformDispatcher.localeTestValue = const Locale('ko');
+    addTearDown(tester.binding.platformDispatcher.clearLocaleTestValue);
+    SharedPreferences.setMockInitialValues({'tutorial_complete': true});
+    await tester.pumpWidget(const GuildApp());
+    await tester.pumpAndSettle();
+    expect(find.text('작은 모험 길드'), findsOneWidget);
+    await tester.tap(find.byTooltip('길드 메뉴'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('설정'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('日本語'));
+    await tester.pumpAndSettle();
+    expect(find.text('小さな冒険ギルド'), findsOneWidget);
+    expect(
+        Localizations.localeOf(tester.element(find.text('小さな冒険ギルド')))
+            .languageCode,
+        'ja');
+    await tester.pumpWidget(const GuildApp(key: ValueKey('language restart')));
+    await tester.pumpAndSettle();
+    expect(find.text('小さな冒険ギルド'), findsOneWidget);
+    await tester.tap(find.byTooltip('ギルドメニュー'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('設定'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('端末の設定に従う'));
+    await tester.pumpAndSettle();
+    expect(find.text('작은 모험 길드'), findsOneWidget);
+  });
+  testWidgets('기기 언어 목록이 비어 있으면 영어를 사용한다', (tester) async {
+    tester.binding.platformDispatcher.localesTestValue = [];
+    tester.binding.platformDispatcher.localeTestValue = const Locale('ko');
+    addTearDown(tester.binding.platformDispatcher.clearLocalesTestValue);
+    addTearDown(tester.binding.platformDispatcher.clearLocaleTestValue);
+    SharedPreferences.setMockInitialValues({'tutorial_complete': true});
+    await tester.pumpWidget(const GuildApp());
+    await tester.pumpAndSettle();
+    expect(find.text('Little Adventure Guild'), findsOneWidget);
   });
 }

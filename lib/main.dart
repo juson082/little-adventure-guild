@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'guild_content.dart';
+import 'translations.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,23 +22,48 @@ const ink = Color(0xff493a31);
 const brown = Color(0xff75533d);
 const cream = Color(0xfffff8e9);
 
-class GuildApp extends StatelessWidget {
+class GuildApp extends StatefulWidget {
   const GuildApp({super.key});
   @override
+  State<GuildApp> createState() => _GuildAppState();
+}
+
+class _GuildAppState extends State<GuildApp> {
+  String? languageOverride;
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((store) {
+      if (mounted) {
+        setState(() => languageOverride = store.getString('language_override'));
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) => MaterialApp(
-        title: '작은 모험 길드',
+        title: 'Little Adventure Guild',
+        locale: languageOverride == null ? null : Locale(languageOverride!),
+        supportedLocales: const [Locale('en'), Locale('ko'), Locale('ja')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        localeResolutionCallback: (locale, supported) => supported.firstWhere(
+            (v) => v.languageCode == locale?.languageCode,
+            orElse: () => const Locale('en')),
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
             useMaterial3: true,
             colorScheme: ColorScheme.fromSeed(seedColor: brown, surface: cream),
             scaffoldBackgroundColor: const Color(0xfff6eedc),
             fontFamily: 'Galmuri'),
-        home: const GuildHome(),
+        home: GuildHome(
+            onLanguageChanged: (value) =>
+                setState(() => languageOverride = value)),
       );
 }
 
 class GuildHome extends StatefulWidget {
-  const GuildHome({super.key});
+  final ValueChanged<String?>? onLanguageChanged;
+  const GuildHome({super.key, this.onLanguageChanged});
   @override
   State<GuildHome> createState() => _GuildHomeState();
 }
@@ -51,6 +78,15 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   Timer? greetingTimer;
   bool greetingFinished = false;
   bool? tutorialComplete;
+  String? languageOverride;
+  String get language {
+    final dispatcher = WidgetsBinding.instance.platformDispatcher;
+    final code = languageOverride ??
+        (dispatcher.locales.isEmpty ? 'en' : dispatcher.locale.languageCode);
+    return const ['ko', 'en', 'ja'].contains(code) ? code : 'en';
+  }
+
+  String t(String text) => translate(language, text);
   int tutorialStep = 0;
 
   String get dateKey {
@@ -74,6 +110,11 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     dateTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeLocales(List<Locale>? locales) {
+    if (mounted && languageOverride == null) setState(() {});
   }
 
   @override
@@ -117,6 +158,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
           today = saved;
           error = null;
           tutorialComplete ??= store.getBool('tutorial_complete') ?? false;
+          languageOverride = store.getString('language_override');
         });
       }
       if (tutorialComplete == true &&
@@ -125,7 +167,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
         startGreeting();
       }
     } catch (_) {
-      if (mounted) setState(() => error = '오늘의 의뢰를 불러오지 못했어요. 다시 시도해 주세요.');
+      if (mounted) setState(() => error = t('오늘의 의뢰를 불러오지 못했어요. 다시 시도해 주세요.'));
     }
   }
 
@@ -159,7 +201,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('안내 진행 상태를 저장하지 못했어요. 다시 시도해 주세요.')));
+            SnackBar(content: Text(t('안내 진행 상태를 저장하지 못했어요. 다시 시도해 주세요.'))));
       }
     } finally {
       if (mounted) setState(() => busy = false);
@@ -189,7 +231,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('기록을 저장하지 못했어요. 다시 시도해 주세요.')));
+            SnackBar(content: Text(t('기록을 저장하지 못했어요. 다시 시도해 주세요.'))));
       }
     } finally {
       if (mounted) setState(() => busy = false);
@@ -227,7 +269,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('꾸미기 기록을 저장하지 못했어요.')));
+            .showSnackBar(SnackBar(content: Text(t('꾸미기 기록을 저장하지 못했어요.'))));
       }
       return false;
     } finally {
@@ -253,31 +295,32 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                         Row(children: [
-                          const Expanded(
-                              child: Text('길드 꾸미기',
+                          Expanded(
+                              child: Text(t('길드 꾸미기'),
                                   style: TextStyle(
                                       color: ink,
                                       fontSize: 20,
                                       fontWeight: FontWeight.w800))),
                           IconButton(
-                              tooltip: '닫기',
+                              tooltip: t('닫기'),
                               onPressed: () => Navigator.pop(dialogContext),
                               icon: const Icon(Icons.close, color: brown))
                         ]),
-                        Text('보유 골드  $gold G',
+                        Text('${t("보유 골드")}  $gold G',
                             style: const TextStyle(
                                 color: brown, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
-                        const Text('모험으로 모은 골드로 길드를 꾸며 보세요. 장식은 하나씩 놓을 수 있어요.',
+                        Text(t('모험으로 모은 골드로 길드를 꾸며 보세요. 장식은 하나씩 놓을 수 있어요.'),
                             style: TextStyle(
                                 color: ink, height: 1.6, fontSize: 13)),
                         const SizedBox(height: 16),
-                        for (final (id, name, price) in decorations) ...[
+                        for (final (id, name, price) in decorations
+                            .map((d) => (d.$1, t(d.$2), d.$3))) ...[
                           GuildButton(
                               label: owned.contains(id)
                                   ? (today?['active'] == id
-                                      ? '$name · 치우기'
-                                      : '$name · 놓기')
+                                      ? '$name · ${t("치우기")}'
+                                      : '$name · ${t("놓기")}')
                                   : '$name · $price G',
                               onPressed:
                                   busy || (!owned.contains(id) && gold < price)
@@ -290,10 +333,69 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                         ],
                         const SizedBox(height: 8),
                         GuildButton(
-                            label: '돌아가기',
+                            label: t('돌아가기'),
                             onPressed: () => Navigator.pop(dialogContext)),
                       ]))));
             }));
+  }
+
+  Future<void> showLanguageSettings() async {
+    await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.all(24),
+              child: PixelPanel(
+                  child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                    Text(t('언어'),
+                        style: const TextStyle(
+                            color: ink,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 14),
+                    for (final (code, name) in [
+                      ('device', t('기기 설정 따르기')),
+                      ('ko', '한국어'),
+                      ('en', 'English'),
+                      ('ja', '日本語')
+                    ]) ...[
+                      GuildButton(
+                          label:
+                              '${(languageOverride ?? 'device') == code ? '● ' : ''}$name',
+                          onPressed: () async {
+                            try {
+                              final store = prefs ??
+                                  await SharedPreferences.getInstance();
+                              final success = code == 'device'
+                                  ? await store.remove('language_override')
+                                  : await store.setString(
+                                      'language_override', code);
+                              if (!success) throw Exception('save failed');
+                              if (!mounted || !dialogContext.mounted) return;
+                              setState(() => languageOverride =
+                                  code == 'device' ? null : code);
+                              widget.onLanguageChanged?.call(languageOverride);
+                              Navigator.pop(dialogContext);
+                            } catch (_) {
+                              if (dialogContext.mounted) {
+                                ScaffoldMessenger.of(dialogContext)
+                                    .showSnackBar(SnackBar(
+                                        content: Text(
+                                            t('기록을 저장하지 못했어요. 다시 시도해 주세요.'))));
+                              }
+                            }
+                          }),
+                      const SizedBox(height: 7),
+                    ],
+                    const SizedBox(height: 6),
+                    GuildButton(
+                        label: t('돌아가기'),
+                        onPressed: () => Navigator.pop(dialogContext)),
+                  ])),
+            ));
   }
 
   void showInfo(bool support) {
@@ -309,25 +411,25 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
               children: [
                 Row(children: [
                   Expanded(
-                      child: Text(support ? '길드 지원하기' : '의뢰 제안하기',
+                      child: Text(support ? t('길드 지원하기') : t('의뢰 제안하기'),
                           style: const TextStyle(
                               color: ink,
                               fontSize: 20,
                               fontWeight: FontWeight.w800))),
                   IconButton(
-                      tooltip: '닫기',
+                      tooltip: t('닫기'),
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.close, color: brown)),
                 ]),
                 const SizedBox(height: 8),
                 Text(
                     support
-                        ? '이 작은 모험들이 내일도 이어질 수 있도록, 원한다면 길드에 보급품을 보내주세요.'
-                        : '다른 모험가들과 나누고 싶은 작은 경험이 있나요? 당신의 의뢰가 언젠가 오늘의 퀘스트가 될지도 모릅니다.',
+                        ? t('이 작은 모험들이 내일도 이어질 수 있도록, 원한다면 길드에 보급품을 보내주세요.')
+                        : t('다른 모험가들과 나누고 싶은 작은 경험이 있나요? 당신의 의뢰가 언젠가 오늘의 퀘스트가 될지도 모릅니다.'),
                     style: const TextStyle(color: ink, height: 1.7)),
                 const SizedBox(height: 18),
                 if (support) ...[
-                  for (final name in ['작은 보급품', '든든한 보급품', '특별 보급품'])
+                  for (final name in [t('작은 보급품'), t('든든한 보급품'), t('특별 보급품')])
                     Padding(
                         padding: const EdgeInsets.only(bottom: 7),
                         child: Container(
@@ -341,17 +443,17 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                     color: brown,
                                     fontWeight: FontWeight.w600)))),
                   const SizedBox(height: 4),
-                  const Text('후원 기능은 준비 중이에요. 모든 퀘스트는 언제나 무료입니다.',
+                  Text(t('후원 기능은 준비 중이에요. 모든 퀘스트는 언제나 무료입니다.'),
                       style:
                           TextStyle(color: brown, fontSize: 12, height: 1.6)),
                 ] else ...[
-                  const Text('의뢰 접수는 준비 중이에요. 후원 여부는 의뢰 채택에 영향을 주지 않습니다.',
+                  Text(t('의뢰 접수는 준비 중이에요. 후원 여부는 의뢰 채택에 영향을 주지 않습니다.'),
                       style:
                           TextStyle(color: brown, fontSize: 12, height: 1.6)),
                 ],
                 const SizedBox(height: 18),
                 GuildButton(
-                    label: '돌아가기', onPressed: () => Navigator.pop(context)),
+                    label: t('돌아가기'), onPressed: () => Navigator.pop(context)),
               ]),
         ),
       ),
@@ -408,8 +510,8 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                 left: 19,
                 right: 12,
                 child: Row(children: [
-                  const Expanded(
-                      child: Text('작은 모험 길드',
+                  Expanded(
+                      child: Text(t('작은 모험 길드'),
                           style: TextStyle(
                               color: Color(0xffffedc7),
                               fontSize: 15,
@@ -425,29 +527,33 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                               color: Color(0xffffedc7),
                               fontWeight: FontWeight.bold))),
                   PopupMenuButton<String>(
-                      tooltip: '길드 메뉴',
+                      tooltip: t('길드 메뉴'),
                       color: cream,
                       iconColor: const Color(0xffffedc7),
                       shape: const RoundedRectangleBorder(),
                       onSelected: (v) {
-                        if (v == 'licenses') {
+                        if (v == 'settings') {
+                          showLanguageSettings();
+                        } else if (v == 'licenses') {
                           showLicensePage(
-                              context: context, applicationName: '작은 모험 길드');
+                              context: context, applicationName: t('작은 모험 길드'));
                         } else if (v == 'decorate') {
                           showDecorations();
                         } else {
                           showInfo(v == 'support');
                         }
                       },
-                      itemBuilder: (_) => const [
+                      itemBuilder: (_) => [
                             PopupMenuItem(
-                                value: 'licenses', child: Text('오픈소스 라이선스')),
+                                value: 'settings', child: Text(t('설정'))),
                             PopupMenuItem(
-                                value: 'decorate', child: Text('길드 꾸미기')),
+                                value: 'licenses', child: Text(t('오픈소스 라이선스'))),
                             PopupMenuItem(
-                                value: 'support', child: Text('길드 지원하기')),
+                                value: 'decorate', child: Text(t('길드 꾸미기'))),
                             PopupMenuItem(
-                                value: 'suggest', child: Text('의뢰 제안하기')),
+                                value: 'support', child: Text(t('길드 지원하기'))),
+                            PopupMenuItem(
+                                value: 'suggest', child: Text(t('의뢰 제안하기'))),
                           ]),
                 ])),
           ]),
@@ -462,7 +568,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                            const Text('길드주인',
+                            Text(t('길드주인'),
                                 style: TextStyle(
                                     color: Color(0xff926c49),
                                     fontSize: 12,
@@ -471,8 +577,8 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                             const SizedBox(height: 7),
                             Text(
                                 tutorialComplete == false
-                                    ? guildTutorial[tutorialStep]
-                                    : greeting,
+                                    ? t(guildTutorial[tutorialStep])
+                                    : t(greeting),
                                 style: const TextStyle(
                                     color: ink,
                                     fontFamily: 'sans-serif',
@@ -490,28 +596,28 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                         const SizedBox(height: 12),
                         GuildButton(
                             label: tutorialStep == guildTutorial.length - 1
-                                ? '모험 시작하기'
-                                : '다음 이야기',
+                                ? t('모험 시작하기')
+                                : t('다음 이야기'),
                             onPressed: busy ? null : advanceTutorial),
                       ] else if (error != null) ...[
                         Text(error!,
                             style: const TextStyle(color: Color(0xffffd3ae))),
-                        TextButton(onPressed: load, child: const Text('다시 시도')),
+                        TextButton(onPressed: load, child: Text(t('다시 시도'))),
                       ] else if (today == null)
-                        const Center(
+                        Center(
                             child: CircularProgressIndicator(
                                 color: Color(0xffe5c793)))
                       else if (!greetingFinished)
-                        const Padding(
+                        Padding(
                             padding: EdgeInsets.symmetric(vertical: 24),
                             child: Center(
-                                child: Text('길드주인의 이야기를 듣고 있어요…',
+                                child: Text(t('길드주인의 이야기를 듣고 있어요…'),
                                     style: TextStyle(
                                         color: Color(0xffc8ae8b),
                                         fontSize: 12))))
                       else if (!opened) ...[
-                        const Center(
-                            child: Text('오늘의 의뢰가 도착했어요',
+                        Center(
+                            child: Text(t('오늘의 의뢰가 도착했어요'),
                                 style: TextStyle(
                                     color: Color(0xffdbc49d), fontSize: 13))),
                         const SizedBox(height: 8),
@@ -523,24 +629,24 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                               shape: const RoundedRectangleBorder(),
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 24, vertical: 4)),
-                          child: const Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SizedBox(
-                                    width: 174,
-                                    height: 142,
-                                    child:
-                                        CustomPaint(painter: ScrollPainter())),
-                                SizedBox(height: 4),
-                                Text('양피지 열기',
-                                    style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700)),
-                              ]),
+                          child:
+                              Column(mainAxisSize: MainAxisSize.min, children: [
+                            SizedBox(
+                                width: 174,
+                                height: 142,
+                                child: Image.asset(
+                                    'assets/sealed_scroll_v2.png',
+                                    fit: BoxFit.contain,
+                                    filterQuality: FilterQuality.none)),
+                            SizedBox(height: 4),
+                            Text(t('양피지 열기'),
+                                style: TextStyle(
+                                    fontSize: 15, fontWeight: FontWeight.w700)),
+                          ]),
                         )),
                         const SizedBox(height: 4),
-                        const Center(
-                            child: Text('봉인을 눌러 의뢰를 확인하세요',
+                        Center(
+                            child: Text(t('봉인을 눌러 의뢰를 확인하세요'),
                                 style: TextStyle(
                                     color: Color(0xffaa9275), fontSize: 12))),
                       ] else
@@ -549,15 +655,15 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                const Center(
-                                    child: Text('오늘의 사이드퀘스트',
+                                Center(
+                                    child: Text(t('오늘의 사이드퀘스트'),
                                         style: TextStyle(
                                             color: Color(0xff9a744f),
                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
                                             letterSpacing: .5))),
                                 const SizedBox(height: 20),
-                                Text(item!.$1,
+                                Text(t(item!.$1),
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
                                         color: ink,
@@ -565,7 +671,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                         fontWeight: FontWeight.w800,
                                         height: 1.4)),
                                 const SizedBox(height: 12),
-                                Text(item.$2,
+                                Text(t(item.$2),
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
                                         color: Color(0xff70533a),
@@ -574,34 +680,36 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                         height: 1.7)),
                                 const SizedBox(height: 22),
                                 if (!resolved) ...[
-                                  const Center(
-                                      child: Text('완료 보상 · 10 G',
+                                  Center(
+                                      child: Text(t('완료 보상 · 10 G'),
                                           style: TextStyle(
                                               color: Color(0xff92704c),
                                               fontSize: 12,
                                               fontWeight: FontWeight.w700))),
                                   const SizedBox(height: 10),
                                   GuildButton(
-                                      label: '퀘스트 완료',
+                                      label: t('퀘스트 완료'),
                                       onPressed: busy
                                           ? null
                                           : () => update('completed')),
                                   const SizedBox(height: 8),
                                   GuildButton(
-                                      label: '퀘스트 실패',
+                                      label: t('퀘스트 실패'),
                                       onPressed:
                                           busy ? null : () => update('failed')),
                                 ] else
                                   GuildButton(
-                                      label: completed ? '퀘스트 완료' : '퀘스트 실패',
+                                      label:
+                                          completed ? t('퀘스트 완료') : t('퀘스트 실패'),
                                       onPressed: null),
                                 const SizedBox(height: 12),
                                 Text(
                                     completed
-                                        ? '작은 모험의 보상으로 10 G를 받았어요.'
+                                        ? t('작은 모험의 보상으로 10 G를 받았어요.')
                                         : failed
-                                            ? '괜찮아요. 내일 또 다른 모험이 기다려요.'
-                                            : '완료 여부는 스스로 선택해 주세요. 하지 않아도 괜찮아요.',
+                                            ? t('괜찮아요. 내일 또 다른 모험이 기다려요.')
+                                            : t(
+                                                '완료 여부는 스스로 선택해 주세요. 하지 않아도 괜찮아요.'),
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
                                         color: Color(0xff957858),
@@ -610,8 +718,8 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                               ]),
                         ),
                       const SizedBox(height: 24),
-                      const Center(
-                          child: Text('평범한 하루에도 모험은 숨어 있으니까요.',
+                      Center(
+                          child: Text(t('평범한 하루에도 모험은 숨어 있으니까요.'),
                               style: TextStyle(
                                   color: Color(0xff9e886d), fontSize: 11))),
                       const SizedBox(height: 20),
@@ -734,45 +842,19 @@ class PixelPanel extends StatelessWidget {
   final bool parchment;
   const PixelPanel({super.key, required this.child, this.parchment = false});
   @override
-  Widget build(BuildContext context) => CustomPaint(
-        painter: PixelPanelPainter(parchment: parchment),
+  Widget build(BuildContext context) => DecoratedBox(
+        decoration: const BoxDecoration(
+            image: DecorationImage(
+                image: ResizeImage(AssetImage('assets/dialogue_frame.png'),
+                    width: 355, height: 177),
+                centerSlice: Rect.fromLTRB(12, 8, 343, 169),
+                fit: BoxFit.fill,
+                filterQuality: FilterQuality.none)),
         child: Padding(
-            padding: EdgeInsets.fromLTRB(parchment ? 28 : 20,
-                parchment ? 27 : 15, parchment ? 28 : 20, parchment ? 26 : 17),
+            padding: EdgeInsets.fromLTRB(parchment ? 28 : 22,
+                parchment ? 40 : 19, parchment ? 28 : 22, parchment ? 26 : 19),
             child: child),
       );
-}
-
-class PixelPanelPainter extends CustomPainter {
-  final bool parchment;
-  const PixelPanelPainter({this.parchment = false});
-  @override
-  void paint(Canvas canvas, Size size) {
-    void rect(double l, double t, double r, double b, Color color) =>
-        canvas.drawRect(Rect.fromLTRB(l, t, r, b), Paint()..color = color);
-    final w = size.width, h = size.height;
-    rect(5, 6, w + 4, h + 5, const Color(0xff160f0b));
-    rect(0, 0, w, h, const Color(0xff67452f));
-    rect(3, 3, w - 3, h - 3, const Color(0xffb28a5b));
-    rect(6, 6, w - 6, h - 6, const Color(0xfff4e6c5));
-    if (parchment) {
-      rect(9, 9, w - 9, h - 9, const Color(0xfff8edcf));
-      final grain = Paint()..color = const Color(0x18a88354);
-      for (var y = 22.0; y < h - 16; y += 28) {
-        canvas.drawRect(Rect.fromLTWH(12, y, 5, 1.5), grain);
-        canvas.drawRect(Rect.fromLTWH(w - 20, y + 9, 6, 1.5), grain);
-      }
-      rect(w / 2 - 12, 12, w / 2 + 12, 14, const Color(0xff87916b));
-      rect(10, 11, 24, 14, const Color(0xffd2b588));
-      rect(w - 24, 11, w - 10, 14, const Color(0xffd2b588));
-      rect(10, h - 14, 24, h - 11, const Color(0xffd2b588));
-      rect(w - 24, h - 14, w - 10, h - 11, const Color(0xffd2b588));
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant PixelPanelPainter oldDelegate) =>
-      oldDelegate.parchment != parchment;
 }
 
 class GuildButton extends StatelessWidget {
@@ -780,84 +862,28 @@ class GuildButton extends StatelessWidget {
   final VoidCallback? onPressed;
   const GuildButton({super.key, required this.label, required this.onPressed});
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 4, right: 4),
-        child: CustomPaint(
-          painter: WoodButtonPainter(enabled: onPressed != null),
+  Widget build(BuildContext context) => Opacity(
+        opacity: onPressed == null ? .55 : 1,
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+              image: DecorationImage(
+                  image: ResizeImage(AssetImage('assets/wood_button.png'),
+                      width: 432, height: 144),
+                  centerSlice: Rect.fromLTRB(12, 8, 420, 136),
+                  fit: BoxFit.fill,
+                  filterQuality: FilterQuality.none)),
           child: TextButton(
-            onPressed: onPressed,
-            style: TextButton.styleFrom(
-                foregroundColor: const Color(0xffffefd1),
-                disabledForegroundColor: const Color(0xffe6dbc5),
-                shape: const RoundedRectangleBorder(),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
-            child: Text(label,
-                textAlign: TextAlign.center,
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-          ),
+              onPressed: onPressed,
+              style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xffffefd1),
+                  disabledForegroundColor: const Color(0xffffefd1),
+                  shape: const RoundedRectangleBorder(),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 28, vertical: 18)),
+              child: Text(label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w700))),
         ),
       );
-}
-
-class WoodButtonPainter extends CustomPainter {
-  final bool enabled;
-  const WoodButtonPainter({required this.enabled});
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width, h = size.height;
-    void rect(double l, double t, double r, double b, Color color) =>
-        canvas.drawRect(Rect.fromLTRB(l, t, r, b), Paint()..color = color);
-    rect(4, 5, w + 4, h + 5, const Color(0xff160f0b));
-    rect(0, 0, w, h, const Color(0xff3e291c));
-    rect(3, 3, w - 3, h - 3,
-        enabled ? const Color(0xff775139) : const Color(0xffa99475));
-    rect(5, 5, w - 5, 7,
-        enabled ? const Color(0xffa97b50) : const Color(0xffc4b295));
-    rect(5, h - 8, w - 5, h - 5,
-        enabled ? const Color(0xff563623) : const Color(0xff8e7b62));
-    rect(9, h / 2 - 2, 13, h / 2 + 2, const Color(0xffd4ad72));
-    rect(w - 13, h / 2 - 2, w - 9, h / 2 + 2, const Color(0xffd4ad72));
-  }
-
-  @override
-  bool shouldRepaint(covariant WoodButtonPainter oldDelegate) =>
-      enabled != oldDelegate.enabled;
-}
-
-class ScrollPainter extends CustomPainter {
-  const ScrollPainter();
-  @override
-  void paint(Canvas canvas, Size size) {
-    final unit = min(size.width / 32, size.height / 28);
-    final ox = (size.width - unit * 32) / 2, oy = (size.height - unit * 28) / 2;
-    void box(int x, int y, int w, int h, Color c) => canvas.drawRect(
-        Rect.fromLTWH(ox + x * unit, oy + y * unit, w * unit, h * unit),
-        Paint()..color = c);
-    const shadow = Color(0xff2f1c13),
-        edge = Color(0xff68412a),
-        wood = Color(0xff99643f),
-        mid = Color(0xffc69e6e),
-        paper = Color(0xffefdbb2),
-        light = Color(0xffffeac1),
-        seal = Color(0xffa84e37);
-    box(5, 8, 23, 14, shadow);
-    box(4, 6, 23, 14, edge);
-    box(6, 7, 19, 12, mid);
-    box(7, 8, 17, 10, paper);
-    box(8, 9, 15, 1, light);
-    box(3, 4, 4, 18, edge);
-    box(4, 5, 2, 16, wood);
-    box(24, 4, 4, 18, edge);
-    box(25, 5, 2, 16, wood);
-    box(13, 7, 5, 12, edge);
-    box(14, 7, 3, 12, const Color(0xff8d9b6b));
-    box(12, 11, 7, 6, edge);
-    box(13, 12, 5, 4, seal);
-    box(14, 12, 2, 1, const Color(0xffdf8760));
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

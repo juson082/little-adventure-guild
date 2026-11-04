@@ -10,6 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   shared_preferences: ^2.3.0
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_lints: ^6.0.0
@@ -24,7 +26,13 @@ flutter:
         - asset: assets/fonts/Galmuri11.ttf
   assets:
     - assets/guild_interior_v3.png
+    - assets/dialogue_frame.png
+    - assets/wood_button.png
+    - assets/sealed_scroll_v2.png
     - assets/fonts/Galmuri-LICENSE.txt
+
+
+
 
 
 
