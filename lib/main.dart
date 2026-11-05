@@ -42,7 +42,7 @@ class _GuildAppState extends State<GuildApp> {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Little Adventure Guild',
+        title: 'Hvildir',
         locale: languageOverride == null ? null : Locale(languageOverride!),
         supportedLocales: const [Locale('en'), Locale('ko'), Locale('ja')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
@@ -549,7 +549,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                         showLanguageSettings();
                       } else if (v == 'licenses') {
                         showLicensePage(
-                            context: context, applicationName: t('작은 모험 길드'));
+                            context: context, applicationName: 'Hvildir');
                       } else if (v == 'decorate') {
                         showDecorations();
                       } else {

@@ -1,4 +1,6 @@
-# 작은 모험 길드 (임시 이름)
+# Hvildir
+
+Side Quest for Your Life
 
 하루에 하나의 작은 현실 모험을 제안하는 오프라인 우선 Android 앱입니다. Flutter/Dart로 만들었습니다. 가입, 광고, 인증과 미완료 불이익은 없습니다.
 
@@ -17,7 +19,7 @@ Flutter stable과 Android Studio/Android SDK가 필요합니다. 이 작업 PC�
 .\.tools\flutter\bin\flutter.bat build appbundle --release
 ```
 
-릴리스 번들은 `build/app/outputs/bundle/release/app-release.aab`에 생성됩니다. 임시 패키지 ID는 `com.questapp.littleadventure.little_adventure_guild`입니다. Google Play에 처음 업로드한 뒤에는 앱의 패키지 ID를 변경할 수 없으므로 등록 전에 확인하세요. 앱 이름은 AndroidManifest.xml에서 바꿀 수 있습니다.
+릴리스 번들은 `build/app/outputs/bundle/release/app-release.aab`에 생성됩니다. 패키지 ID는 `com.questapp.littleadventure.little_adventure_guild`입니다. 앱 이름 Hvildir와 별개인 내부 식별자로, Play에 처음 등록한 뒤에는 변경할 수 없습니다.
 
 ## 서명 키
 
@@ -28,7 +30,7 @@ Flutter stable과 Android Studio/Android SDK가 필요합니다. 이 작업 PC�
 - 퀘스트와 완료 상태는 기기에만 보관됩니다. 기기를 바꾸거나 앱 데이터를 삭제하면 기록이 사라집니다.
 - 후원 및 의뢰 제안은 준비 중 화면이며 결제나 외부 폼은 연결되지 않았습니다.
 - 로컬 알림과 날씨·위치 기반 추천은 구현하지 않았습니다.
-- `store-assets/`의 아이콘과 그래픽은 임시 이미지입니다. 스토어 등록 문안과 최종 콘텐츠도 확인 후 교체하세요.
+- `store-assets/`의 아이콘과 그래픽은 임시 이미지입니다. 화면 이미지는 디자인 렌더링이므로 Play 등록 전에 실제 기기에서 촬영한 스크린샷으로 교체하세요. 스토어 등록 문안과 최종 콘텐츠도 확인하세요.
 - 비공개 테스트를 시작하기 전 Play Console의 앱 정보, 테스트 대상, 데이터 보안 및 정책 항목은 실제 앱과 계정 상태에 맞게 직접 작성해야 합니다.
 
 ## 골드와 길드 꾸미기
