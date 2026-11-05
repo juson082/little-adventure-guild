@@ -461,13 +461,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 10),
-                  Text(t('길드 메뉴'),
-                      style: const TextStyle(
-                          color: ink,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 6),
                   for (final entry in [
                     ('settings', t('설정')),
                     ('licenses', t('오픈소스 라이선스')),
@@ -1187,40 +1181,50 @@ class QuestDocument extends StatelessWidget {
                 right: w * .15,
                 top: h * (hard ? .23 : .12),
                 bottom: h * (hard ? .25 : .35),
-                child: SingleChildScrollView(
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  if (!hard) ...[
-                    Text(heading,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            color: Color(0xff926438),
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12)
-                  ],
-                  Text(title,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          color: ink,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          height: 1.3)),
-                  const SizedBox(height: 10),
-                  Text(description,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          color: Color(0xff62452b),
-                          fontFamily: 'sans-serif',
-                          fontSize: 14,
-                          height: 1.5)),
-                  const SizedBox(height: 12),
-                  Text(reward,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          color: Color(0xff8b5b21),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold)),
-                ]))),
+                child: LayoutBuilder(builder: (context, contentConstraints) {
+                  return SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                          minHeight: contentConstraints.maxHeight),
+                      child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (!hard) ...[
+                              Text(heading,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      color: Color(0xff926438),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 12)
+                            ],
+                            Text(title,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    color: ink,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.3)),
+                            const SizedBox(height: 10),
+                            Text(description,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    color: Color(0xff62452b),
+                                    fontFamily: 'sans-serif',
+                                    fontSize: 14,
+                                    height: 1.5)),
+                            const SizedBox(height: 12),
+                            Text(reward,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    color: Color(0xff8b5b21),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold)),
+                          ]),
+                    ),
+                  );
+                })),
             if (hard) ...[
               Positioned(
                   left: w * .095,
