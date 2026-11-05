@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'guild_content.dart';
+import 'guild_decorations.dart';
 import 'hard_quests.dart';
 import 'translations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -205,7 +206,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
         saved = {
           'gold': saved?['gold'] ?? 0,
           'unlocked': saved?['unlocked'] ?? <String>[],
-          'active': saved?['active'] ?? '',
+          'active_items': saved?['active_items'] ?? <String>[],
           'failed': false,
           'date': dateKey,
           'quest': index,
@@ -410,31 +411,40 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     }
   }
 
-  static const decorations = <(String, String, int)>[
-    ('plant', '작은 화분', 10),
-    ('banner', '길드 깃발', 20),
-    ('lantern', '따뜻한 등불', 30),
-  ];
-
-  Future<bool> selectDecoration(String id, int price) async {
+  Future<bool> selectDecoration(GuildDecoration decoration) async {
     if (busy || today == null || prefs == null) return false;
     if (today!['date'] != dateKey) {
       await load();
       return false;
     }
     final owned = List<String>.from(today!['unlocked'] as List? ?? []);
+    final active = List<String>.from(today!['active_items'] as List? ?? []);
     var gold = today!['gold'] as int? ?? 0;
-    if (!owned.contains(id)) {
-      if (gold < price) return false;
-      gold -= price;
-      owned.add(id);
+    if (!owned.contains(decoration.id)) {
+      if (gold < decorationPrice) return false;
+      gold -= decorationPrice;
+      owned.add(decoration.id);
     }
-    final active = today!['active'] == id ? '' : id;
-    final next = {...today!, 'gold': gold, 'unlocked': owned, 'active': active};
+    if (active.contains(decoration.id)) {
+      active.remove(decoration.id);
+    } else {
+      final sameSlot = guildDecorations
+          .where((item) => item.slot == decoration.slot)
+          .map((item) => item.id)
+          .toSet();
+      active.removeWhere(sameSlot.contains);
+      active.add(decoration.id);
+    }
+    final next = {
+      ...today!,
+      'gold': gold,
+      'unlocked': owned,
+      'active_items': active
+    };
     setState(() => busy = true);
     try {
       if (!await prefs!.setString('today', jsonEncode(next))) {
-        throw Exception('저장 실패');
+        throw Exception('save failed');
       }
       if (mounted) setState(() => today = next);
       return true;
@@ -525,21 +535,19 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                 color: brown, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
                         const SizedBox(height: 16),
-                        for (final (id, name, price) in decorations
-                            .map((d) => (d.$1, t(d.$2), d.$3))) ...[
+                        for (final item in guildDecorations) ...[
                           GuildButton(
-                              label: owned.contains(id)
-                                  ? (today?['active'] == id
-                                      ? '$name · ${t("치우기")}'
-                                      : '$name · ${t("놓기")}')
-                                  : '$name · $price G',
-                              onPressed:
-                                  busy || (!owned.contains(id) && gold < price)
-                                      ? null
-                                      : () async {
-                                          await selectDecoration(id, price);
-                                          if (context.mounted) refresh(() {});
-                                        }),
+                              label: owned.contains(item.id)
+                                  ? '${decorationName(language, item)} · ${(today?['active_items'] as List? ?? []).contains(item.id) ? t("치우기") : t("놓기")}'
+                                  : '${decorationName(language, item)} · $decorationPrice G',
+                              onPressed: busy ||
+                                      (!owned.contains(item.id) &&
+                                          gold < decorationPrice)
+                                  ? null
+                                  : () async {
+                                      await selectDecoration(item);
+                                      if (context.mounted) refresh(() {});
+                                    }),
                           const SizedBox(height: 7),
                         ],
                         const SizedBox(height: 8),
@@ -706,17 +714,23 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
               children: [
                 Stack(children: [
                   AspectRatio(
-                      aspectRatio: 1.45,
+                      aspectRatio: 1.29,
                       child: Image.asset('assets/guild_interior_v4.png',
                           fit: BoxFit.cover,
                           alignment: Alignment.topCenter,
                           filterQuality: FilterQuality.none)),
-                  if (today?['active'] != null && today?['active'] != '')
-                    Positioned.fill(
-                        child: IgnorePointer(
-                            child: CustomPaint(
-                                painter: DecorationPainter(
-                                    today!['active'] as String)))),
+                  for (final item in guildDecorations)
+                    if ((today?['active_items'] as List? ?? [])
+                        .contains(item.id))
+                      Positioned.fill(
+                          child: IgnorePointer(
+                              child: ClipRect(
+                        clipper: GuildDecorationClipper(item.region),
+                        child: Image.asset(item.asset,
+                            fit: BoxFit.cover,
+                            alignment: Alignment.topCenter,
+                            filterQuality: FilterQuality.none),
+                      ))),
                   const Positioned.fill(
                       child: IgnorePointer(child: GuildLanternGlow())),
                   Positioned.fill(
@@ -728,7 +742,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                   colors: [
                         Colors.black.withValues(alpha: .26),
                         Colors.transparent,
-                        const Color(0xff291c15).withValues(alpha: .72)
+                        const Color(0xff291c15).withValues(alpha: .25)
                       ],
                                   stops: const [
                         0,
@@ -967,42 +981,23 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   }
 }
 
-class DecorationPainter extends CustomPainter {
-  final String active;
-  const DecorationPainter(this.active);
+class GuildDecorationClipper extends CustomClipper<Rect> {
+  const GuildDecorationClipper(this.region);
+  final Rect region;
   @override
-  void paint(Canvas canvas, Size size) {
-    void rect(double x, double y, double w, double h, Color color) =>
-        canvas.drawRect(
-            Rect.fromLTWH(size.width * x, size.height * y, size.width * w,
-                size.height * h),
-            Paint()..color = color);
-    const dark = Color(0xff573c2b),
-        gold = Color(0xffd4a960),
-        green = Color(0xff70885a),
-        red = Color(0xff9f5b47);
-    if (active == 'plant') {
-      rect(.79, .72, .11, .07, dark);
-      rect(.80, .70, .09, .05, red);
-      rect(.825, .62, .035, .08, green);
-      rect(.80, .64, .035, .035, green);
-      rect(.85, .62, .035, .035, green);
-    } else if (active == 'banner') {
-      rect(.05, .22, .13, .03, dark);
-      rect(.06, .25, .11, .19, green);
-      rect(.08, .29, .07, .025, gold);
-      rect(.10, .275, .025, .08, gold);
-    } else if (active == 'lantern') {
-      rect(.79, .68, .09, .02, dark);
-      rect(.81, .60, .05, .08, dark);
-      rect(.82, .61, .03, .06, gold);
-      rect(.81, .58, .05, .02, dark);
-    }
+  Rect getClip(Size size) {
+    const originalWidth = 1199.0;
+    const visibleHeight = originalWidth / 1.29;
+    return Rect.fromLTRB(
+        region.left / originalWidth * size.width,
+        region.top / visibleHeight * size.height,
+        region.right / originalWidth * size.width,
+        region.bottom / visibleHeight * size.height);
   }
 
   @override
-  bool shouldRepaint(covariant DecorationPainter oldDelegate) =>
-      active != oldDelegate.active;
+  bool shouldReclip(covariant GuildDecorationClipper oldClipper) =>
+      oldClipper.region != region;
 }
 
 class GuildLanternGlow extends StatefulWidget {

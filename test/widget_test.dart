@@ -1,4 +1,5 @@
 import 'package:little_adventure_guild/guild_content.dart';
+import 'package:little_adventure_guild/guild_decorations.dart';
 import 'package:little_adventure_guild/hard_quests.dart';
 import 'dart:convert';
 import 'package:little_adventure_guild/translations.dart';
@@ -77,7 +78,8 @@ void main() {
     SharedPreferences.setMockInitialValues({
       'tutorial_complete': true,
       'language_override': 'ko',
-      'today': '{"date":"$date","quest":0,"opened":true,"completed":false}'
+      'today':
+          '{"date":"$date","quest":0,"opened":true,"completed":false,"gold":140}'
     });
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
@@ -94,9 +96,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('길드 꾸미기'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('작은 화분 · 10 G'));
+    await tester.tap(find.text('별의 수호검 · 150 G'));
     await tester.pumpAndSettle();
-    expect(find.text('작은 화분 · 치우기'), findsOneWidget);
+    expect(find.text('별의 수호검 · 치우기'), findsOneWidget);
     expect(find.text('보유 골드  0 G'), findsOneWidget);
     await tester.tap(find.text('돌아가기'));
     await tester.pumpAndSettle();
@@ -107,7 +109,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('길드 꾸미기'));
     await tester.pumpAndSettle();
-    expect(find.text('작은 화분 · 치우기'), findsOneWidget);
+    expect(find.text('별의 수호검 · 치우기'), findsOneWidget);
     expect(find.text('보유 골드  0 G'), findsOneWidget);
   });
   testWidgets('실패를 선택해도 골드가 차감되지 않는다', (tester) async {
@@ -410,5 +412,81 @@ void main() {
     await tester.pumpAndSettle();
     expect(state()['gold'], 15);
     expect(state()['completed'], isTrue);
+  });
+
+  test('장식 10개는 각 언어로 번역되고 동일 가격을 사용한다', () {
+    expect(guildDecorations.length, 10);
+    expect(guildDecorations.map((d) => d.id).toSet().length, 10);
+    expect(decorationPrice, 150);
+    for (final locale in ['en', 'ja', 'zh', 'hi', 'es']) {
+      for (final item in guildDecorations) {
+        expect(decorationName(locale, item), isNotEmpty);
+        expect(decorationName(locale, item), isNot(item.name));
+      }
+    }
+  });
+  testWidgets('같은 위치 장식은 교체되고 다른 위치는 유지된다', (tester) async {
+    final now = DateTime.now();
+    final date =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    SharedPreferences.setMockInitialValues({
+      'tutorial_complete': true,
+      'language_override': 'ko',
+      'last_greeting_date': date,
+      'today': jsonEncode({
+        'date': date,
+        'quest': 0,
+        'catalogVersion': 1,
+        'opened': false,
+        'completed': false,
+        'gold': 0,
+        'unlocked': ['sigil', 'banner_dragon', 'crystal'],
+        'active_items': ['sigil', 'crystal']
+      }),
+    });
+    await tester.pumpWidget(const GuildApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('보유 골드'));
+    await tester.pumpAndSettle();
+    final banner = find.text('용의 날개 깃발 · 놓기');
+    await tester.ensureVisible(banner);
+    await tester.pumpAndSettle();
+    await tester.tap(banner);
+    await tester.pumpAndSettle();
+    final store = await SharedPreferences.getInstance();
+    Map state() => jsonDecode(store.getString('today')!) as Map;
+    expect(state()['active_items'], containsAll(['banner_dragon', 'crystal']));
+    expect(state()['active_items'], isNot(contains('sigil')));
+    expect(state()['gold'], 0);
+    final off = find.text('용의 날개 깃발 · 치우기');
+    await tester.ensureVisible(off);
+    await tester.pumpAndSettle();
+    await tester.tap(off);
+    await tester.pumpAndSettle();
+    expect(state()['active_items'], ['crystal']);
+  });
+  testWidgets('날짜가 바뀌어도 구매와 장식 상태가 유지된다', (tester) async {
+    final old = DateTime.now().subtract(const Duration(days: 1));
+    final yesterday =
+        '${old.year}-${old.month.toString().padLeft(2, '0')}-${old.day.toString().padLeft(2, '0')}';
+    SharedPreferences.setMockInitialValues({
+      'tutorial_complete': true,
+      'today': jsonEncode({
+        'date': yesterday,
+        'quest': 0,
+        'catalogVersion': 1,
+        'opened': true,
+        'gold': 73,
+        'unlocked': ['sword', 'crystal'],
+        'active_items': ['sword', 'crystal']
+      }),
+    });
+    await tester.pumpWidget(const GuildApp());
+    await tester.pumpAndSettle();
+    final store = await SharedPreferences.getInstance();
+    final saved = jsonDecode(store.getString('today')!) as Map;
+    expect(saved['gold'], 73);
+    expect(saved['unlocked'], ['sword', 'crystal']);
+    expect(saved['active_items'], ['sword', 'crystal']);
   });
 }

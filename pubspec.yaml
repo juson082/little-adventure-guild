@@ -31,6 +31,7 @@ flutter:
     - assets/sealed_scroll_v2.png
     - assets/quest_paper_normal.png
     - assets/quest_paper_hard.png
+    - assets/decorations/
     - assets/fonts/Galmuri-LICENSE.txt
 
 
