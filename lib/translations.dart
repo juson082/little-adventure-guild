@@ -35,6 +35,23 @@ const translations = <String, Map<String, String>>{
         'Suggestions are coming soon. Supporting the guild does not affect selection.',
     '모험 시작하기': 'Begin the adventure',
     '다음 이야기': 'Continue',
+    '어서 와!\n요즘 리얼 월드에서 메인 퀘스트를 하느라 바쁘지? 고생이 많구먼.':
+        'Welcome!\nBusy with your main quest in the real world these days? You’ve been working hard.',
+    '걱정 마. 우리 길드에서는 메인 퀘스트는 취급하지 않아.\n여기선 하루에 하나씩, 작은 서브퀘스트를 줄 거야.':
+        'Don’t worry. Our guild doesn’t deal in main quests.\nHere, I’ll give you one small side quest each day.',
+    '의뢰서를 열어 보고, 마음이 가면 한 번 해 봐.\n끝나면 성공했는지 실패했는지 나한테 보고해 주면 돼.':
+        'Open the quest scroll and give it a try if you feel like it.\nWhen you’re done, just report whether you succeeded or failed.',
+    '퀘스트에 성공하면 골드를 줄게.\n모은 골드로는 길드 내부를 자네 취향대로 꾸밀 수 있어.':
+        'Succeed at a quest and I’ll give you gold.\nYou can use the gold you collect to decorate the guild as you like.',
+    '응? 성공했는지 자기가 직접 보고하는 거냐고?':
+        'Hm? You’re asking if you report your own success?',
+    '자네가 퀘스트를 잘하고 있는지 알아보려면 감시 마법을 써야 하잖아.\n그런데 우리 길드엔 마법사가 없거든!':
+        'We’d need a watching spell to check how your quest is going.\nBut our guild doesn’t have a mage!',
+    '뭐, 마법사가 있었다 해도 굳이 감시하진 않았을 거야.\n난 자네를 믿으니까!':
+        'Well, even if we had a mage, I wouldn’t bother watching you.\nI trust you!',
+    '그러니 퀘스트가 끝나면 양심껏 보고해 줘.\n실패해도 괜찮아. 내일이면 또 다른 의뢰가 찾아올 테니까.':
+        'So when your quest is over, just report honestly.\nIt’s fine to fail. Another quest will arrive tomorrow.',
+    '자, 그럼 오늘의 의뢰서를 받게!': 'Now, take today’s quest scroll!',
     '길드주인의 이야기를 듣고 있어요…': 'Listening to the guildkeeper…',
     '오늘의 의뢰가 도착했어요': 'Today’s quest has arrived',
     '양피지 열기': 'Open the scroll',
@@ -113,6 +130,23 @@ const translations = <String, Map<String, String>>{
         '依頼の受付は準備中です。支援の有無は採用に影響しません。',
     '모험 시작하기': '冒険を始める',
     '다음 이야기': '次の話へ',
+    '어서 와!\n요즘 리얼 월드에서 메인 퀘스트를 하느라 바쁘지? 고생이 많구먼.':
+        'ようこそ！\n最近はリアルワールドでメインクエストに忙しいんじゃろう？ お疲れさん。',
+    '걱정 마. 우리 길드에서는 메인 퀘스트는 취급하지 않아.\n여기선 하루에 하나씩, 작은 서브퀘스트를 줄 거야.':
+        '心配せんでいい。うちのギルドではメインクエストは扱っておらん。\nここでは一日に一つ、小さなサブクエストを渡そう。',
+    '의뢰서를 열어 보고, 마음이 가면 한 번 해 봐.\n끝나면 성공했는지 실패했는지 나한테 보고해 주면 돼.':
+        '依頼書を開いて、気が向いたらやってみてくれ。\n終わったら、成功か失敗かをわしに報告するだけでいい。',
+    '퀘스트에 성공하면 골드를 줄게.\n모은 골드로는 길드 내부를 자네 취향대로 꾸밀 수 있어.':
+        'クエストに成功したらゴールドを渡そう。\n集めたゴールドで、ギルドの中を好きなように飾れるぞ。',
+    '응? 성공했는지 자기가 직접 보고하는 거냐고?':
+        'ん？ 成功したかどうか、自分で報告するのかって？',
+    '자네가 퀘스트를 잘하고 있는지 알아보려면 감시 마법을 써야 하잖아.\n그런데 우리 길드엔 마법사가 없거든!':
+        'クエストの様子を確かめるには、監視の魔法が必要じゃろう。\nところが、うちのギルドには魔法使いがおらんのじゃ！',
+    '뭐, 마법사가 있었다 해도 굳이 감시하진 않았을 거야.\n난 자네를 믿으니까!':
+        'まあ、魔法使いがいたとしても、わざわざ監視はせんよ。\nわしはおぬしを信じておるからな！',
+    '그러니 퀘스트가 끝나면 양심껏 보고해 줘.\n실패해도 괜찮아. 내일이면 또 다른 의뢰가 찾아올 테니까.':
+        'だからクエストが終わったら、正直に報告しておくれ。\n失敗しても大丈夫。明日になれば、また別の依頼が届くからな。',
+    '자, 그럼 오늘의 의뢰서를 받게!': 'さあ、それでは今日の依頼書を受け取るがよい！',
     '길드주인의 이야기를 듣고 있어요…': 'ギルドの主人の話を聞いています…',
     '오늘의 의뢰가 도착했어요': '今日の依頼が届きました',
     '양피지 열기': '巻物を開く',

@@ -76,6 +76,8 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   bool busy = false;
   Timer? dateTimer;
   Timer? greetingTimer;
+  Timer? tutorialPauseTimer;
+  bool tutorialPaused = false;
   bool greetingFinished = false;
   bool? tutorialComplete;
   String? languageOverride;
@@ -107,6 +109,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   @override
   void dispose() {
     greetingTimer?.cancel();
+    tutorialPauseTimer?.cancel();
     dateTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -181,9 +184,21 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   }
 
   Future<void> advanceTutorial() async {
-    if (busy || prefs == null) return;
+    if (busy || tutorialPaused || prefs == null) return;
     if (tutorialStep < guildTutorial.length - 1) {
-      setState(() => tutorialStep++);
+      if (tutorialStep == tutorialPauseAfterStep) {
+        setState(() => tutorialPaused = true);
+        tutorialPauseTimer = Timer(const Duration(seconds: 3), () {
+          if (mounted) {
+            setState(() {
+              tutorialStep++;
+              tutorialPaused = false;
+            });
+          }
+        });
+      } else {
+        setState(() => tutorialStep++);
+      }
       return;
     }
     setState(() => busy = true);
@@ -194,10 +209,9 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
       if (mounted) {
         setState(() {
           tutorialComplete = true;
-          greetingFinished = false;
+          greetingFinished = true;
         });
       }
-      startGreeting();
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -584,7 +598,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      PixelPanel(
+                      if (!tutorialPaused) PixelPanel(
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -607,7 +621,9 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                     height: 1.6)),
                           ])),
                       const SizedBox(height: 20),
-                      if (tutorialComplete == false) ...[
+                      if (tutorialPaused)
+                        const SizedBox.shrink()
+                      else if (tutorialComplete == false) ...[
                         Center(
                             child: Text(
                                 '${tutorialStep + 1} / ${guildTutorial.length}',
