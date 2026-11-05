@@ -835,86 +835,32 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                       heightFactor: value,
                                       alignment: Alignment.topCenter,
                                       child: child)),
-                              child: PixelPanel(
-                                parchment: true,
-                                ornate: isHard,
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      if (!isHard)
-                                        Center(
-                                            child: Text(t('오늘의 사이드퀘스트'),
-                                                style: TextStyle(
-                                                    color: Color(0xff9a744f),
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w700,
-                                                    letterSpacing: .5))),
-                                      const SizedBox(height: 20),
-                                      Text(t(item!.$1),
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(
-                                              color: ink,
-                                              fontSize: 21,
-                                              fontWeight: FontWeight.w800,
-                                              height: 1.4)),
-                                      const SizedBox(height: 12),
-                                      Text(t(item.$2),
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(
-                                              color: Color(0xff70533a),
-                                              fontFamily: 'sans-serif',
-                                              fontSize: 15,
-                                              height: 1.7)),
-                                      const SizedBox(height: 22),
-                                      if (!resolved) ...[
-                                        Center(
-                                            child: Text(
-                                                isHard
-                                                    ? t('완료 보상 · 10 G')
-                                                        .replaceAll('10', '30')
-                                                    : t('완료 보상 · 10 G'),
-                                                style: TextStyle(
-                                                    color: Color(0xff92704c),
-                                                    fontSize: 12,
-                                                    fontWeight:
-                                                        FontWeight.w700))),
-                                        const SizedBox(height: 10),
-                                        GuildButton(
-                                            label: t('퀘스트 완료'),
-                                            onPressed: busy
-                                                ? null
-                                                : () => update('completed')),
-                                        const SizedBox(height: 8),
-                                        GuildButton(
-                                            label: t('퀘스트 실패'),
-                                            onPressed: busy
-                                                ? null
-                                                : () => update('failed')),
-                                      ] else
-                                        GuildButton(
-                                            label: completed
-                                                ? t('퀘스트 완료')
-                                                : t('퀘스트 실패'),
-                                            onPressed: null),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                          completed
-                                              ? (isHard
-                                                  ? t('작은 모험의 보상으로 10 G를 받았어요.')
-                                                      .replaceAll('10', '30')
-                                                  : t(
-                                                      '작은 모험의 보상으로 10 G를 받았어요.'))
-                                              : failed
-                                                  ? t('괜찮아요. 내일 또 다른 모험이 기다려요.')
-                                                  : t(
-                                                      '완료 여부는 스스로 선택해 주세요. 하지 않아도 괜찮아요.'),
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(
-                                              color: Color(0xff957858),
-                                              fontSize: 11,
-                                              height: 1.5)),
-                                    ]),
+                              child: QuestDocument(
+                                title: t(item!.$1),
+                                description: t(item.$2),
+                                hard: isHard,
+                                completed: completed,
+                                failed: failed,
+                                heading: t('오늘의 사이드퀘스트'),
+                                reward: isHard
+                                    ? t('완료 보상 · 10 G').replaceAll('10', '30')
+                                    : t('완료 보상 · 10 G'),
+                                note: completed
+                                    ? (isHard
+                                        ? t('작은 모험의 보상으로 10 G를 받았어요.')
+                                            .replaceAll('10', '30')
+                                        : t('작은 모험의 보상으로 10 G를 받았어요.'))
+                                    : failed
+                                        ? t('괜찮아요. 내일 또 다른 모험이 기다려요.')
+                                        : t('완료 여부는 스스로 선택해 주세요. 하지 않아도 괜찮아요.'),
+                                completeLabel: t('퀘스트 완료'),
+                                failLabel: t('퀘스트 실패'),
+                                onComplete: busy || resolved
+                                    ? null
+                                    : () => update('completed'),
+                                onFail: busy || resolved
+                                    ? null
+                                    : () => update('failed'),
                               )),
                         const SizedBox(height: 24),
                         Center(
@@ -1079,6 +1025,147 @@ class HeaderIconPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant HeaderIconPainter oldDelegate) =>
       oldDelegate.coin != coin;
+}
+
+class QuestDocument extends StatelessWidget {
+  const QuestDocument(
+      {super.key,
+      required this.title,
+      required this.description,
+      required this.hard,
+      required this.completed,
+      required this.failed,
+      required this.heading,
+      required this.reward,
+      required this.note,
+      required this.completeLabel,
+      required this.failLabel,
+      this.onComplete,
+      this.onFail});
+  final String title,
+      description,
+      heading,
+      reward,
+      note,
+      completeLabel,
+      failLabel;
+  final bool hard, completed, failed;
+  final VoidCallback? onComplete, onFail;
+
+  @override
+  Widget build(BuildContext context) => AspectRatio(
+        aspectRatio: 2 / 3,
+        child: LayoutBuilder(builder: (context, constraints) {
+          final w = constraints.maxWidth, h = constraints.maxHeight;
+          Widget action(String label, VoidCallback? callback, bool selected) =>
+              TextButton(
+                onPressed: callback,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  minimumSize: Size.zero,
+                  foregroundColor: const Color(0xffffefcd),
+                  disabledForegroundColor: const Color(0xffffefcd),
+                  shape: const RoundedRectangleBorder(),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  backgroundColor:
+                      selected ? const Color(0x665b390d) : Colors.transparent,
+                ),
+                child: Center(
+                    child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(label,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                shadows: [
+                                  Shadow(
+                                      color: Color(0xff49200b),
+                                      offset: Offset(1, 2))
+                                ])))),
+              );
+          return Stack(children: [
+            Positioned.fill(
+                child: Image.asset(
+                    hard
+                        ? 'assets/quest_paper_hard.png'
+                        : 'assets/quest_paper_normal.png',
+                    fit: BoxFit.fill,
+                    filterQuality: FilterQuality.none)),
+            Positioned(
+                left: w * .15,
+                right: w * .15,
+                top: h * (hard ? .23 : .12),
+                bottom: h * (hard ? .25 : .35),
+                child: SingleChildScrollView(
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  if (!hard) ...[
+                    Text(heading,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            color: Color(0xff926438),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12)
+                  ],
+                  Text(title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          color: ink,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          height: 1.3)),
+                  const SizedBox(height: 10),
+                  Text(description,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          color: Color(0xff62452b),
+                          fontFamily: 'sans-serif',
+                          fontSize: 14,
+                          height: 1.5)),
+                  const SizedBox(height: 12),
+                  Text(reward,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          color: Color(0xff8b5b21),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(note,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          color: Color(0xff765438), fontSize: 10, height: 1.4)),
+                ]))),
+            if (hard) ...[
+              Positioned(
+                  left: w * .095,
+                  width: w * .375,
+                  top: h * .79,
+                  height: h * .085,
+                  child: action(completeLabel, onComplete, completed)),
+              Positioned(
+                  left: w * .53,
+                  width: w * .375,
+                  top: h * .79,
+                  height: h * .085,
+                  child: action(failLabel, onFail, failed)),
+            ] else ...[
+              Positioned(
+                  left: w * .13,
+                  width: w * .74,
+                  top: h * .67,
+                  height: h * .10,
+                  child: action(completeLabel, onComplete, completed)),
+              Positioned(
+                  left: w * .13,
+                  width: w * .74,
+                  top: h * .80,
+                  height: h * .10,
+                  child: action(failLabel, onFail, failed)),
+            ],
+          ]);
+        }),
+      );
 }
 
 class PixelPanel extends StatelessWidget {

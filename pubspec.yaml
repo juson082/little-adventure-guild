@@ -29,6 +29,8 @@ flutter:
     - assets/dialogue_frame.png
     - assets/wood_button.png
     - assets/sealed_scroll_v2.png
+    - assets/quest_paper_normal.png
+    - assets/quest_paper_hard.png
     - assets/fonts/Galmuri-LICENSE.txt
 
 

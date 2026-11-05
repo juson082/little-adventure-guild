@@ -41,7 +41,10 @@ void main() {
     await tester.tap(find.text('퀘스트 완료'));
     await tester.pumpAndSettle();
     expect(find.text('퀘스트 완료'), findsOneWidget);
-    expect(find.text('10 G'), findsOneWidget);
+    expect(
+        (jsonDecode((await SharedPreferences.getInstance()).getString('today')!)
+            as Map)['gold'],
+        10);
     await tester.pumpWidget(const GuildApp(key: ValueKey('restart')));
     await tester.pumpAndSettle();
     await tester.pump(const Duration(seconds: 12));
@@ -127,7 +130,10 @@ void main() {
     await tester.tap(find.text('퀘스트 실패'));
     await tester.pumpAndSettle();
     expect(find.text('퀘스트 실패'), findsOneWidget);
-    expect(find.text('20 G'), findsOneWidget);
+    expect(
+        (jsonDecode((await SharedPreferences.getInstance()).getString('today')!)
+            as Map)['gold'],
+        20);
   });
   testWidgets('첫 실행에 길드주인의 안내가 나오고 완료 후 다시 나오지 않는다', (tester) async {
     SharedPreferences.setMockInitialValues({'language_override': 'ko'});
