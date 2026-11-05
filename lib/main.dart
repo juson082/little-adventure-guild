@@ -510,51 +510,71 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                 left: 19,
                 right: 12,
                 child: Row(children: [
-                  Expanded(
-                      child: Text(t('작은 모험 길드'),
-                          style: TextStyle(
-                              color: Color(0xffffedc7),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: .8,
-                              shadows: [
-                                Shadow(blurRadius: 5, color: Colors.black)
-                              ]))),
-                  Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: Text("${today?['gold'] ?? 0} G",
-                          style: const TextStyle(
-                              color: Color(0xffffedc7),
-                              fontWeight: FontWeight.bold))),
+                  const Spacer(),
+                  Tooltip(
+                    message: t('보유 골드'),
+                    child: DecoratedBox(
+                      decoration: headerWoodDecoration,
+                      child: TextButton(
+                        onPressed: today == null ? null : showDecorations,
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xffffefcc),
+                          disabledForegroundColor: const Color(0xffc2ab86),
+                          shape: const RoundedRectangleBorder(),
+                          minimumSize: const Size(48, 44),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CustomPaint(
+                                  painter: HeaderIconPainter(coin: true))),
+                          const SizedBox(width: 7),
+                          Text("${today?['gold'] ?? 0} G",
+                              style: const TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w800)),
+                        ]),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   PopupMenuButton<String>(
-                      tooltip: t('길드 메뉴'),
-                      color: cream,
-                      iconColor: const Color(0xffffedc7),
-                      shape: const RoundedRectangleBorder(),
-                      onSelected: (v) {
-                        if (v == 'settings') {
-                          showLanguageSettings();
-                        } else if (v == 'licenses') {
-                          showLicensePage(
-                              context: context, applicationName: t('작은 모험 길드'));
-                        } else if (v == 'decorate') {
-                          showDecorations();
-                        } else {
-                          showInfo(v == 'support');
-                        }
-                      },
-                      itemBuilder: (_) => [
-                            PopupMenuItem(
-                                value: 'settings', child: Text(t('설정'))),
-                            PopupMenuItem(
-                                value: 'licenses', child: Text(t('오픈소스 라이선스'))),
-                            PopupMenuItem(
-                                value: 'decorate', child: Text(t('길드 꾸미기'))),
-                            PopupMenuItem(
-                                value: 'support', child: Text(t('길드 지원하기'))),
-                            PopupMenuItem(
-                                value: 'suggest', child: Text(t('의뢰 제안하기'))),
-                          ]),
+                    tooltip: t('길드 메뉴'),
+                    color: cream,
+                    iconColor: const Color(0xffffedc7),
+                    shape: const RoundedRectangleBorder(),
+                    onSelected: (v) {
+                      if (v == 'settings') {
+                        showLanguageSettings();
+                      } else if (v == 'licenses') {
+                        showLicensePage(
+                            context: context, applicationName: t('작은 모험 길드'));
+                      } else if (v == 'decorate') {
+                        showDecorations();
+                      } else {
+                        showInfo(v == 'support');
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      PopupMenuItem(value: 'settings', child: Text(t('설정'))),
+                      PopupMenuItem(
+                          value: 'licenses', child: Text(t('오픈소스 라이선스'))),
+                      PopupMenuItem(
+                          value: 'decorate', child: Text(t('길드 꾸미기'))),
+                      PopupMenuItem(
+                          value: 'support', child: Text(t('길드 지원하기'))),
+                      PopupMenuItem(
+                          value: 'suggest', child: Text(t('의뢰 제안하기'))),
+                    ],
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: headerWoodDecoration,
+                      padding: const EdgeInsets.all(12),
+                      child: const CustomPaint(painter: HeaderIconPainter()),
+                    ),
+                  ),
                 ])),
           ]),
           Transform.translate(
@@ -835,6 +855,47 @@ class LanternGlowPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant LanternGlowPainter oldDelegate) =>
       oldDelegate.frame != frame;
+}
+
+const headerWoodDecoration = BoxDecoration(
+  image: DecorationImage(
+    image: ResizeImage(AssetImage('assets/wood_button.png'),
+        width: 432, height: 144),
+    centerSlice: Rect.fromLTRB(12, 8, 420, 136),
+    fit: BoxFit.fill,
+    filterQuality: FilterQuality.none,
+  ),
+);
+
+class HeaderIconPainter extends CustomPainter {
+  final bool coin;
+  const HeaderIconPainter({this.coin = false});
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint();
+    void box(double x, double y, double w, double h, Color color) {
+      paint.color = color;
+      canvas.drawRect(
+          Rect.fromLTWH(
+              size.width * x, size.height * y, size.width * w, size.height * h),
+          paint);
+    }
+
+    if (coin) {
+      box(.2, .1, .6, .8, const Color(0xffa46424));
+      box(.1, .2, .8, .6, const Color(0xffa46424));
+      box(.2, .2, .6, .6, const Color(0xffffcb62));
+      box(.3, .3, .15, .4, const Color(0xffffe2a2));
+    } else {
+      for (final y in [.2, .45, .7]) {
+        box(.1, y, .8, .12, const Color(0xffffefcc));
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant HeaderIconPainter oldDelegate) =>
+      oldDelegate.coin != coin;
 }
 
 class PixelPanel extends StatelessWidget {
