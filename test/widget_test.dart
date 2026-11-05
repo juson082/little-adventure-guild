@@ -191,11 +191,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Welcome, adventurer.'), findsOneWidget);
   });
-  test('인사와 튜토리얼 및 예시 퀘스트에 영어·일본어 번역이 있다', () {
+  test('인사와 튜토리얼에 각 언어 번역이 있다', () {
     final content = [
       ...guildGreetings,
       ...guildTutorial,
-      for (final q in quests) ...[q.$1, q.$2]
     ];
     for (final language in ['en', 'ja', 'zh', 'hi', 'es']) {
       for (final source in content) {
@@ -206,6 +205,35 @@ void main() {
             reason: '$language: $source');
       }
     }
+  });
+  test('퀘스트 목록이 완성되어 있고 제목에 표시용 번호가 없다', () {
+    expect(quests.length, 303);
+    expect(quests.map((q) => q.$1).toSet().length, quests.length);
+    for (final quest in quests) {
+      expect(quest.$1, isNotEmpty);
+      expect(quest.$2, isNotEmpty);
+      expect(RegExp(r'^\s*\d+[.)]\s').hasMatch(quest.$1), isFalse);
+    }
+  });
+  testWidgets('기존에 받은 오늘의 퀘스트가 목록 교체 후에도 유지된다', (tester) async {
+    final now = DateTime.now();
+    final date =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    SharedPreferences.setMockInitialValues({
+      'tutorial_complete': true,
+      'language_override': 'ko',
+      'today': '{"date":"$date","quest":0,"opened":true,"completed":false}',
+    });
+    await tester.pumpWidget(const GuildApp());
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.text('잠시 하늘을 올려다보기'), findsOneWidget);
+    await tester.pumpWidget(const GuildApp(key: ValueKey('legacy restart')));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.text('잠시 하늘을 올려다보기'), findsOneWidget);
   });
   for (final (code, expected) in [
     ('zh', '欢迎回来！'),

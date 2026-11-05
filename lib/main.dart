@@ -141,6 +141,24 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
       Map<String, dynamic>? saved;
       if (raw != null) {
         saved = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+        if (saved['catalogVersion'] == null && saved['date'] == dateKey) {
+          const legacyQuests = <(String, String)>[
+            ('잠시 하늘을 올려다보기', '잠시 걸음을 멈추고 구름이나 별이 떠 있는 하늘을 바라봐.'),
+            ('오래된 사진 꺼내 보기', '마음에 남은 오래된 사진 한 장을 꺼내 천천히 들여다봐.'),
+            ('안부 한 줄 보내기', '문득 떠오르는 사람에게 가볍게 안부를 전해 봐.'),
+          ];
+          final oldIndex = saved['quest'];
+          if (oldIndex is int &&
+              oldIndex >= 0 &&
+              oldIndex < legacyQuests.length) {
+            saved['legacyTitle'] = legacyQuests[oldIndex].$1;
+            saved['legacyDescription'] = legacyQuests[oldIndex].$2;
+            saved['catalogVersion'] = 1;
+            if (!await store.setString('today', jsonEncode(saved))) {
+              throw Exception('저장 실패');
+            }
+          }
+        }
         if (saved['quest'] is! int ||
             (saved['quest'] as int) < 0 ||
             (saved['quest'] as int) >= quests.length) {
@@ -148,8 +166,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
         }
       }
       if (saved == null || saved['date'] != dateKey) {
-        var index = Random().nextInt(quests.length);
-        if (index == saved?['quest']) index = (index + 1) % quests.length;
+        final index = Random().nextInt(quests.length);
         saved = {
           'gold': saved?['gold'] ?? 0,
           'unlocked': saved?['unlocked'] ?? <String>[],
@@ -157,6 +174,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
           'failed': false,
           'date': dateKey,
           'quest': index,
+          'catalogVersion': 1,
           'opened': false,
           'completed': false
         };
@@ -489,7 +507,15 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final item = today == null ? null : quests[today!['quest'] as int];
+    final item = today == null
+        ? null
+        : today!['legacyTitle'] is String &&
+                today!['legacyDescription'] is String
+            ? (
+                today!['legacyTitle'] as String,
+                today!['legacyDescription'] as String
+              )
+            : quests[today!['quest'] as int];
     final opened = today?['opened'] == true;
     final completed = today?['completed'] == true;
     final failed = today?['failed'] == true;
