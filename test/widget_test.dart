@@ -374,4 +374,41 @@ void main() {
       expect(saved[complete ? 'completed' : 'failed'], isTrue);
     });
   }
+
+  testWidgets('동전 연출이 끝난 뒤에만 골드를 지급한다', (tester) async {
+    final now = DateTime.now();
+    final date =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    SharedPreferences.setMockInitialValues({
+      'tutorial_complete': true,
+      'language_override': 'ko',
+      'last_greeting_date': date,
+      'today': jsonEncode({
+        'date': date,
+        'quest': 0,
+        'catalogVersion': 1,
+        'opened': true,
+        'completed': false,
+        'gold': 5
+      }),
+    });
+    await tester.pumpWidget(const GuildApp());
+    await tester.pumpAndSettle();
+    final complete = find.text('퀘스트 완료');
+    await tester.ensureVisible(complete);
+    await tester.pumpAndSettle();
+    await tester.tap(complete);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 500));
+    final store = await SharedPreferences.getInstance();
+    Map state() => jsonDecode(store.getString('today')!) as Map;
+    expect(state()['gold'], 5);
+    expect(state()['completed'], isFalse);
+    expect(find.byType(RewardFlight), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1500));
+    await tester.pumpAndSettle();
+    expect(state()['gold'], 15);
+    expect(state()['completed'], isTrue);
+  });
 }

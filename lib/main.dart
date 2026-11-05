@@ -101,6 +101,13 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   Map<String, dynamic>? today;
   String? error;
   bool busy = false;
+  bool rewarding = false;
+  Offset rewardStart = Offset.zero;
+  Offset rewardEnd = Offset.zero;
+  final screenKey = GlobalKey();
+  final goldKey = GlobalKey();
+  final completeKey = GlobalKey();
+  final ScrollController screenScroll = ScrollController();
   Timer? dateTimer;
   Timer? greetingTimer;
   Timer? tutorialPauseTimer;
@@ -133,12 +140,15 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     load();
     dateTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (today != null && today!['date'] != dateKey && !busy) load();
+      if (today != null && today!['date'] != dateKey && !busy && !rewarding) {
+        load();
+      }
     });
   }
 
   @override
   void dispose() {
+    screenScroll.dispose();
     greetingTimer?.cancel();
     tutorialPauseTimer?.cancel();
     dateTimer?.cancel();
@@ -318,6 +328,55 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     if (mounted) setState(() => revealing = false);
   }
 
+  Future<void> completeQuest() async {
+    if (busy ||
+        rewarding ||
+        today == null ||
+        today!['opened'] != true ||
+        today!['completed'] == true ||
+        today!['failed'] == true) {
+      return;
+    }
+    if (today!['date'] != dateKey) {
+      await load();
+      return;
+    }
+    if (MediaQuery.disableAnimationsOf(context)) {
+      await update('completed');
+      return;
+    }
+    final root = screenKey.currentContext?.findRenderObject() as RenderBox?;
+    final button = completeKey.currentContext?.findRenderObject() as RenderBox?;
+    if (root == null || button == null) {
+      await update('completed');
+      return;
+    }
+    final start = root
+        .globalToLocal(button.localToGlobal(button.size.center(Offset.zero)));
+    setState(() {
+      rewarding = true;
+      rewardEnd = Offset.zero;
+    });
+    if (screenScroll.hasClients) {
+      await screenScroll.animateTo(0,
+          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    }
+    if (!mounted) return;
+    final target = goldKey.currentContext?.findRenderObject() as RenderBox?;
+    final end = target == null
+        ? Offset(root.size.width - 85, 38)
+        : root.globalToLocal(
+            target.localToGlobal(target.size.center(Offset.zero)));
+    setState(() {
+      rewardStart = start;
+      rewardEnd = end;
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 1450));
+    if (!mounted) return;
+    await update('completed');
+    if (mounted) setState(() => rewarding = false);
+  }
+
   Future<void> update(String key) async {
     if (busy || today == null) return;
     if (today!['date'] != dateKey) {
@@ -390,6 +449,54 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     }
   }
 
+  void showGuildMenu() {
+    showGuildDialog<void>(
+        context: context,
+        builder: (dialogContext) => Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.all(24),
+              child: SingleChildScrollView(
+                  child: PixelPanel(
+                      child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 10),
+                  Text(t('길드 메뉴'),
+                      style: const TextStyle(
+                          color: ink,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 14),
+                  for (final entry in [
+                    ('settings', t('설정')),
+                    ('licenses', t('오픈소스 라이선스')),
+                    ('decorate', t('길드 꾸미기')),
+                    ('support', t('길드 지원하기')),
+                    ('suggest', t('의뢰 제안하기')),
+                  ]) ...[
+                    GuildButton(
+                        label: entry.$2,
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                          if (entry.$1 == 'settings') {
+                            showLanguageSettings();
+                          } else if (entry.$1 == 'licenses') {
+                            showLicensePage(
+                                context: context, applicationName: 'Hvildir');
+                          } else if (entry.$1 == 'decorate') {
+                            showDecorations();
+                          } else {
+                            showInfo(entry.$1 == 'support');
+                          }
+                        }),
+                    const SizedBox(height: 6),
+                  ],
+                ],
+              ))),
+            ));
+  }
+
   void showDecorations() {
     showGuildDialog<void>(
         context: context,
@@ -423,9 +530,6 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                             style: const TextStyle(
                                 color: brown, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
-                        Text(t('모험으로 모은 골드로 길드를 꾸며 보세요. 장식은 하나씩 놓을 수 있어요.'),
-                            style: TextStyle(
-                                color: ink, height: 1.6, fontSize: 13)),
                         const SizedBox(height: 16),
                         for (final (id, name, price) in decorations
                             .map((d) => (d.$1, t(d.$2), d.$3))) ...[
@@ -597,281 +701,270 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     final resolved = completed || failed;
     return Scaffold(
       backgroundColor: const Color(0xff291c15),
-      body: Stack(children: [
+      body: Stack(key: screenKey, children: [
         SafeArea(
             child: Center(
                 child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
-          child: ListView(padding: EdgeInsets.zero, children: [
-            Stack(children: [
-              AspectRatio(
-                  aspectRatio: 1.45,
-                  child: Image.asset('assets/guild_interior_v4.png',
-                      fit: BoxFit.cover,
-                      alignment: Alignment.topCenter,
-                      filterQuality: FilterQuality.none)),
-              if (today?['active'] != null && today?['active'] != '')
-                Positioned.fill(
-                    child: IgnorePointer(
-                        child: CustomPaint(
-                            painter: DecorationPainter(
-                                today!['active'] as String)))),
-              const Positioned.fill(
-                  child: IgnorePointer(child: GuildLanternGlow())),
-              Positioned.fill(
-                  child: DecoratedBox(
-                      decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                    Colors.black.withValues(alpha: .26),
-                    Colors.transparent,
-                    const Color(0xff291c15).withValues(alpha: .72)
-                  ],
-                              stops: const [
-                    0,
-                    .38,
-                    1
-                  ])))),
-              Positioned(
-                  top: 12,
-                  left: 19,
-                  right: 12,
-                  child: Row(children: [
-                    const Spacer(),
-                    Tooltip(
-                      message: t('보유 골드'),
+          child: ListView(
+              controller: screenScroll,
+              padding: EdgeInsets.zero,
+              children: [
+                Stack(children: [
+                  AspectRatio(
+                      aspectRatio: 1.45,
+                      child: Image.asset('assets/guild_interior_v4.png',
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
+                          filterQuality: FilterQuality.none)),
+                  if (today?['active'] != null && today?['active'] != '')
+                    Positioned.fill(
+                        child: IgnorePointer(
+                            child: CustomPaint(
+                                painter: DecorationPainter(
+                                    today!['active'] as String)))),
+                  const Positioned.fill(
+                      child: IgnorePointer(child: GuildLanternGlow())),
+                  Positioned.fill(
                       child: DecoratedBox(
-                        decoration: headerWoodDecoration,
-                        child: TextButton(
-                          onPressed: today == null ? null : showDecorations,
-                          style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xffffefcc),
-                            disabledForegroundColor: const Color(0xffc2ab86),
-                            shape: const RoundedRectangleBorder(),
-                            minimumSize: const Size(48, 44),
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                          ),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CustomPaint(
-                                    painter: HeaderIconPainter(coin: true))),
-                            const SizedBox(width: 7),
-                            Text("${today?['gold'] ?? 0} G",
-                                style: const TextStyle(
-                                    fontSize: 14, fontWeight: FontWeight.w800)),
-                          ]),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    PopupMenuButton<String>(
-                      tooltip: t('길드 메뉴'),
-                      color: cream,
-                      iconColor: const Color(0xffffedc7),
-                      shape: const RoundedRectangleBorder(),
-                      onSelected: (v) {
-                        if (v == 'settings') {
-                          showLanguageSettings();
-                        } else if (v == 'licenses') {
-                          showLicensePage(
-                              context: context, applicationName: 'Hvildir');
-                        } else if (v == 'decorate') {
-                          showDecorations();
-                        } else {
-                          showInfo(v == 'support');
-                        }
-                      },
-                      itemBuilder: (_) => [
-                        PopupMenuItem(value: 'settings', child: Text(t('설정'))),
-                        PopupMenuItem(
-                            value: 'licenses', child: Text(t('오픈소스 라이선스'))),
-                        PopupMenuItem(
-                            value: 'decorate', child: Text(t('길드 꾸미기'))),
-                        PopupMenuItem(
-                            value: 'support', child: Text(t('길드 지원하기'))),
-                        PopupMenuItem(
-                            value: 'suggest', child: Text(t('의뢰 제안하기'))),
+                          decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                        Colors.black.withValues(alpha: .26),
+                        Colors.transparent,
+                        const Color(0xff291c15).withValues(alpha: .72)
                       ],
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: headerWoodDecoration,
-                        padding: const EdgeInsets.all(12),
-                        child: const CustomPaint(painter: HeaderIconPainter()),
-                      ),
-                    ),
-                  ])),
-            ]),
-            Transform.translate(
-                offset: const Offset(0, -18),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 22),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 240),
-                            transitionBuilder: (child, animation) => ClipRect(
-                                child: SizeTransition(
-                                    sizeFactor: animation,
-                                    alignment: Alignment.topCenter,
-                                    child: FadeTransition(
-                                        opacity: animation, child: child))),
-                            child: !tutorialPaused &&
-                                    (tutorialComplete == false || showGreeting)
-                                ? PixelPanel(
-                                    child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                        Text(t('길드주인'),
-                                            style: TextStyle(
-                                                color: Color(0xff926c49),
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w800,
-                                                letterSpacing: .5)),
-                                        const SizedBox(height: 7),
-                                        Text(
-                                            tutorialComplete == false
-                                                ? t(guildTutorial[tutorialStep])
-                                                : t(greeting),
-                                            style: const TextStyle(
-                                                color: ink,
-                                                fontFamily: 'sans-serif',
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                height: 1.6)),
-                                      ]))
-                                : const SizedBox.shrink(
-                                    key: ValueKey('closed'))),
-                        const SizedBox(height: 20),
-                        if (tutorialPaused)
-                          const SizedBox.shrink()
-                        else if (tutorialComplete == false) ...[
-                          Center(
-                              child: Text(
-                                  '${tutorialStep + 1} / ${guildTutorial.length}',
-                                  style: const TextStyle(
-                                      color: Color(0xffc8ae8b), fontSize: 12))),
-                          const SizedBox(height: 12),
-                          GuildButton(
-                              label: tutorialStep == guildTutorial.length - 1
-                                  ? t('모험 시작하기')
-                                  : t('다음 이야기'),
-                              onPressed: busy ? null : advanceTutorial),
-                        ] else if (error != null) ...[
-                          Text(error!,
-                              style: const TextStyle(color: Color(0xffffd3ae))),
-                          TextButton(onPressed: load, child: Text(t('다시 시도'))),
-                        ] else if (today == null)
-                          Center(
-                              child: CircularProgressIndicator(
-                                  color: Color(0xffe5c793)))
-                        else if (!greetingFinished)
-                          Padding(
-                              padding: EdgeInsets.symmetric(vertical: 24),
-                              child: Center(
-                                  child: Text(t('길드주인의 이야기를 듣고 있어요…'),
-                                      style: TextStyle(
-                                          color: Color(0xffc8ae8b),
-                                          fontSize: 12))))
-                        else if (!opened) ...[
-                          Center(
-                            child: Semantics(
-                              button: true,
-                              label: t('양피지 열기'),
-                              child: TweenAnimationBuilder<double>(
-                                tween: Tween(begin: 0, end: 1),
-                                duration: const Duration(milliseconds: 2600),
-                                curve: Curves.linear,
-                                builder: (context, value, child) =>
-                                    Transform.translate(
-                                        offset: Offset(
-                                            0,
-                                            (1 - value) * 12 +
-                                                sin(value * pi * 6) *
-                                                    5 *
-                                                    (1 - value)),
-                                        child: Transform.scale(
-                                            scale: .9 + .1 * value,
-                                            child: child)),
-                                child: TextButton(
-                                  key: const ValueKey('openQuest'),
-                                  onPressed:
-                                      busy || revealing ? null : openQuest,
-                                  style: TextButton.styleFrom(
-                                      padding: const EdgeInsets.all(8)),
-                                  child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                            Icons.keyboard_double_arrow_down,
-                                            color: Color(0xffffd681),
-                                            size: 30),
-                                        SizedBox(
-                                            width: 220,
-                                            height: 150,
-                                            child: Image.asset(
-                                                'assets/sealed_scroll_v2.png',
-                                                fit: BoxFit.contain,
-                                                filterQuality:
-                                                    FilterQuality.none)),
-                                      ]),
-                                ),
+                                  stops: const [
+                        0,
+                        .38,
+                        1
+                      ])))),
+                  Positioned(
+                      top: 12,
+                      left: 19,
+                      right: 12,
+                      child: Row(children: [
+                        const Spacer(),
+                        Tooltip(
+                          message: t('보유 골드'),
+                          child: DecoratedBox(
+                            decoration: headerWoodDecoration,
+                            child: TextButton(
+                              key: goldKey,
+                              onPressed: today == null || rewarding
+                                  ? null
+                                  : showDecorations,
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xffffefcc),
+                                disabledForegroundColor:
+                                    const Color(0xffc2ab86),
+                                shape: const RoundedRectangleBorder(),
+                                minimumSize: const Size(48, 44),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
                               ),
+                              child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CustomPaint(
+                                            painter:
+                                                HeaderIconPainter(coin: true))),
+                                    const SizedBox(width: 7),
+                                    Text("${today?['gold'] ?? 0} G",
+                                        style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w800)),
+                                  ]),
                             ),
                           ),
-                        ] else
-                          TweenAnimationBuilder<double>(
-                              tween: Tween(begin: .85, end: 1),
-                              duration: const Duration(milliseconds: 360),
-                              curve: Curves.easeOut,
-                              builder: (context, value, child) => ClipRect(
-                                  child: Align(
-                                      heightFactor: value,
-                                      alignment: Alignment.topCenter,
-                                      child: child)),
-                              child: QuestDocument(
-                                title: t(item!.$1),
-                                description: t(item.$2),
-                                hard: isHard,
-                                completed: completed,
-                                failed: failed,
-                                heading: t('오늘의 사이드퀘스트'),
-                                reward: isHard
-                                    ? t('완료 보상 · 10 G').replaceAll('10', '30')
-                                    : t('완료 보상 · 10 G'),
-                                note: completed
-                                    ? (isHard
-                                        ? t('작은 모험의 보상으로 10 G를 받았어요.')
-                                            .replaceAll('10', '30')
-                                        : t('작은 모험의 보상으로 10 G를 받았어요.'))
-                                    : failed
-                                        ? t('괜찮아요. 내일 또 다른 모험이 기다려요.')
-                                        : t('완료 여부는 스스로 선택해 주세요. 하지 않아도 괜찮아요.'),
-                                completeLabel: t('퀘스트 완료'),
-                                failLabel: t('퀘스트 실패'),
-                                onComplete: busy || resolved
-                                    ? null
-                                    : () => update('completed'),
-                                onFail: busy || resolved
-                                    ? null
-                                    : () => update('failed'),
+                        ),
+                        const SizedBox(width: 8),
+                        Tooltip(
+                          message: t('길드 메뉴'),
+                          child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: rewarding ? null : showGuildMenu,
+                                child: Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: headerWoodDecoration,
+                                    padding: const EdgeInsets.all(12),
+                                    child: const CustomPaint(
+                                        painter: HeaderIconPainter())),
                               )),
-                        const SizedBox(height: 24),
-                        Center(
-                            child: Text(t('평범한 하루에도 모험은 숨어 있으니까요.'),
-                                style: TextStyle(
-                                    color: Color(0xff9e886d), fontSize: 11))),
-                        const SizedBox(height: 20),
-                      ]),
-                )),
-          ]),
+                        ),
+                      ])),
+                ]),
+                Transform.translate(
+                    offset: const Offset(0, -18),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 22),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 240),
+                                transitionBuilder: (child, animation) =>
+                                    ClipRect(
+                                        child: SizeTransition(
+                                            sizeFactor: animation,
+                                            alignment: Alignment.topCenter,
+                                            child: FadeTransition(
+                                                opacity: animation,
+                                                child: child))),
+                                child: !tutorialPaused &&
+                                        (tutorialComplete == false ||
+                                            showGreeting)
+                                    ? PixelPanel(
+                                        child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                            Text(t('길드주인'),
+                                                style: TextStyle(
+                                                    color: Color(0xff926c49),
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w800,
+                                                    letterSpacing: .5)),
+                                            const SizedBox(height: 7),
+                                            Text(
+                                                tutorialComplete == false
+                                                    ? t(guildTutorial[
+                                                        tutorialStep])
+                                                    : t(greeting),
+                                                style: const TextStyle(
+                                                    color: ink,
+                                                    fontFamily: 'sans-serif',
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w600,
+                                                    height: 1.6)),
+                                          ]))
+                                    : const SizedBox.shrink(
+                                        key: ValueKey('closed'))),
+                            const SizedBox(height: 20),
+                            if (tutorialPaused)
+                              const SizedBox.shrink()
+                            else if (tutorialComplete == false) ...[
+                              Center(
+                                  child: Text(
+                                      '${tutorialStep + 1} / ${guildTutorial.length}',
+                                      style: const TextStyle(
+                                          color: Color(0xffc8ae8b),
+                                          fontSize: 12))),
+                              const SizedBox(height: 12),
+                              GuildButton(
+                                  label:
+                                      tutorialStep == guildTutorial.length - 1
+                                          ? t('모험 시작하기')
+                                          : t('다음 이야기'),
+                                  onPressed: busy ? null : advanceTutorial),
+                            ] else if (error != null) ...[
+                              Text(error!,
+                                  style: const TextStyle(
+                                      color: Color(0xffffd3ae))),
+                              TextButton(
+                                  onPressed: load, child: Text(t('다시 시도'))),
+                            ] else if (today == null)
+                              Center(
+                                  child: CircularProgressIndicator(
+                                      color: Color(0xffe5c793)))
+                            else if (!greetingFinished)
+                              const SizedBox.shrink()
+                            else if (!opened) ...[
+                              Center(
+                                child: Semantics(
+                                  button: true,
+                                  label: t('양피지 열기'),
+                                  child: TweenAnimationBuilder<double>(
+                                    tween: Tween(begin: 0, end: 1),
+                                    duration:
+                                        const Duration(milliseconds: 2600),
+                                    curve: Curves.linear,
+                                    builder: (context, value, child) =>
+                                        Transform.translate(
+                                            offset: Offset(
+                                                0,
+                                                (1 - value) * 12 +
+                                                    sin(value * pi * 6) *
+                                                        5 *
+                                                        (1 - value)),
+                                            child: Transform.scale(
+                                                scale: .9 + .1 * value,
+                                                child: child)),
+                                    child: TextButton(
+                                      key: const ValueKey('openQuest'),
+                                      onPressed:
+                                          busy || revealing ? null : openQuest,
+                                      style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.all(8)),
+                                      child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                                Icons
+                                                    .keyboard_double_arrow_down,
+                                                color: Color(0xffffd681),
+                                                size: 30),
+                                            SizedBox(
+                                                width: 220,
+                                                height: 150,
+                                                child: Image.asset(
+                                                    'assets/sealed_scroll_v2.png',
+                                                    fit: BoxFit.contain,
+                                                    filterQuality:
+                                                        FilterQuality.none)),
+                                          ]),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ] else
+                              TweenAnimationBuilder<double>(
+                                  tween: Tween(begin: .85, end: 1),
+                                  duration: const Duration(milliseconds: 360),
+                                  curve: Curves.easeOut,
+                                  builder: (context, value, child) => ClipRect(
+                                      child: Align(
+                                          heightFactor: value,
+                                          alignment: Alignment.topCenter,
+                                          child: child)),
+                                  child: QuestDocument(
+                                    title: t(item!.$1),
+                                    description: t(item.$2),
+                                    hard: isHard,
+                                    completed: completed,
+                                    failed: failed,
+                                    heading: t('오늘의 사이드퀘스트'),
+                                    reward: isHard
+                                        ? t('완료 보상 · 10 G')
+                                            .replaceAll('10', '30')
+                                        : t('완료 보상 · 10 G'),
+                                    completeLabel: t('퀘스트 완료'),
+                                    failLabel: t('퀘스트 실패'),
+                                    completeKey: completeKey,
+                                    onComplete: busy || rewarding || resolved
+                                        ? null
+                                        : completeQuest,
+                                    onFail: busy || rewarding || resolved
+                                        ? null
+                                        : () => update('failed'),
+                                  )),
+                            const SizedBox(height: 24),
+                            const SizedBox(height: 20),
+                          ]),
+                    )),
+              ]),
         ))),
+        if (rewarding && rewardEnd != Offset.zero)
+          Positioned.fill(
+              child: IgnorePointer(
+                  child: RewardFlight(start: rewardStart, end: rewardEnd))),
         if (revealing)
           Positioned.fill(
               child: AbsorbPointer(child: QuestReveal(hard: isHard))),
@@ -1037,28 +1130,25 @@ class QuestDocument extends StatelessWidget {
       required this.failed,
       required this.heading,
       required this.reward,
-      required this.note,
       required this.completeLabel,
       required this.failLabel,
+      this.completeKey,
       this.onComplete,
       this.onFail});
-  final String title,
-      description,
-      heading,
-      reward,
-      note,
-      completeLabel,
-      failLabel;
+  final String title, description, heading, reward, completeLabel, failLabel;
   final bool hard, completed, failed;
   final VoidCallback? onComplete, onFail;
+  final GlobalKey? completeKey;
 
   @override
   Widget build(BuildContext context) => AspectRatio(
         aspectRatio: 2 / 3,
         child: LayoutBuilder(builder: (context, constraints) {
           final w = constraints.maxWidth, h = constraints.maxHeight;
-          Widget action(String label, VoidCallback? callback, bool selected) =>
+          Widget action(String label, VoidCallback? callback, bool selected,
+                  {Key? key}) =>
               TextButton(
+                key: key,
                 onPressed: callback,
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -1130,11 +1220,6 @@ class QuestDocument extends StatelessWidget {
                           color: Color(0xff8b5b21),
                           fontSize: 12,
                           fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text(note,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          color: Color(0xff765438), fontSize: 10, height: 1.4)),
                 ]))),
             if (hard) ...[
               Positioned(
@@ -1142,7 +1227,8 @@ class QuestDocument extends StatelessWidget {
                   width: w * .375,
                   top: h * .79,
                   height: h * .085,
-                  child: action(completeLabel, onComplete, completed)),
+                  child: action(completeLabel, onComplete, completed,
+                      key: completeKey)),
               Positioned(
                   left: w * .53,
                   width: w * .375,
@@ -1155,7 +1241,8 @@ class QuestDocument extends StatelessWidget {
                   width: w * .74,
                   top: h * .67,
                   height: h * .10,
-                  child: action(completeLabel, onComplete, completed)),
+                  child: action(completeLabel, onComplete, completed,
+                      key: completeKey)),
               Positioned(
                   left: w * .13,
                   width: w * .74,
@@ -1294,6 +1381,54 @@ class _GuildButtonState extends State<GuildButton> {
                           fontSize: 14, fontWeight: FontWeight.w700))),
             ),
           )));
+}
+
+class RewardFlight extends StatelessWidget {
+  const RewardFlight({super.key, required this.start, required this.end});
+  final Offset start, end;
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 1400),
+        builder: (context, value, _) =>
+            CustomPaint(painter: RewardFlightPainter(value, start, end)),
+      );
+}
+
+class RewardFlightPainter extends CustomPainter {
+  final double progress;
+  final Offset start, end;
+  RewardFlightPainter(this.progress, this.start, this.end);
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (var i = 0; i < 6; i++) {
+      final delay = i * .035;
+      final t = ((progress - delay) / (1 - delay)).clamp(0.0, 1.0);
+      final burst = sin(min(1.0, t * 2.3) * pi / 2) * (1 - t);
+      final spread = Offset((i - 2.5) * 17, -35 - (i % 3) * 13) * burst;
+      final travel = Curves.easeInCubic.transform(t);
+      final pos = Offset.lerp(start + spread, end, travel)!;
+      final scale = (1 - .65 * travel).clamp(.25, 1.0);
+      canvas.save();
+      canvas.translate(pos.dx, pos.dy);
+      canvas.scale(scale);
+      canvas.drawRect(const Rect.fromLTWH(-7, -9, 14, 18),
+          Paint()..color = const Color(0xff854417));
+      canvas.drawRect(const Rect.fromLTWH(-9, -6, 18, 12),
+          Paint()..color = const Color(0xff854417));
+      canvas.drawRect(const Rect.fromLTWH(-5, -7, 10, 14),
+          Paint()..color = const Color(0xffffc654));
+      canvas.drawRect(const Rect.fromLTWH(-2, -5, 3, 9),
+          Paint()..color = const Color(0xffffe6a0));
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant RewardFlightPainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.start != start ||
+      oldDelegate.end != end;
 }
 
 class QuestReveal extends StatelessWidget {
