@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'guild_content.dart';
+import 'hard_quests.dart';
 import 'translations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -67,6 +68,25 @@ class _GuildAppState extends State<GuildApp> {
                 setState(() => languageOverride = value)),
       );
 }
+
+Future<T?> showGuildDialog<T>(
+        {required BuildContext context, required WidgetBuilder builder}) =>
+    showGeneralDialog<T>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, _, __) => builder(context),
+      transitionBuilder: (context, animation, _, child) => FadeTransition(
+        opacity: animation,
+        child: ScaleTransition(
+          scale: Tween<double>(begin: .93, end: 1).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+          child: child,
+        ),
+      ),
+    );
 
 class GuildHome extends StatefulWidget {
   final ValueChanged<String?>? onLanguageChanged;
@@ -166,12 +186,12 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
         }
         if (saved['quest'] is! int ||
             (saved['quest'] as int) < 0 ||
-            (saved['quest'] as int) >= quests.length) {
+            (saved['quest'] as int) >= quests.length + hardQuests.length) {
           throw const FormatException('잘못된 퀘스트 기록');
         }
       }
       if (saved == null || saved['date'] != dateKey) {
-        final index = Random().nextInt(quests.length);
+        final index = Random().nextInt(quests.length + hardQuests.length);
         saved = {
           'gold': saved?['gold'] ?? 0,
           'unlocked': saved?['unlocked'] ?? <String>[],
@@ -312,7 +332,10 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     }
     setState(() => busy = true);
     final next = {...today!, key: true};
-    if (key == 'completed') next['gold'] = (today!['gold'] as int? ?? 0) + 10;
+    if (key == 'completed') {
+      final isHard = (today!['quest'] as int) >= quests.length;
+      next['gold'] = (today!['gold'] as int? ?? 0) + (isHard ? 30 : 10);
+    }
     try {
       if (!await prefs!.setString('today', jsonEncode(next))) {
         throw Exception('저장 실패');
@@ -368,7 +391,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   }
 
   void showDecorations() {
-    showDialog<void>(
+    showGuildDialog<void>(
         context: context,
         builder: (dialogContext) =>
             StatefulBuilder(builder: (context, refresh) {
@@ -430,7 +453,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   }
 
   Future<void> showLanguageSettings() async {
-    await showDialog<void>(
+    await showGuildDialog<void>(
         context: context,
         builder: (dialogContext) => Dialog(
               backgroundColor: Colors.transparent,
@@ -493,7 +516,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   }
 
   void showInfo(bool support) {
-    showDialog<void>(
+    showGuildDialog<void>(
       context: context,
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
@@ -564,7 +587,10 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                 today!['legacyTitle'] as String,
                 today!['legacyDescription'] as String
               )
-            : quests[today!['quest'] as int];
+            : (today!['quest'] as int) < quests.length
+                ? quests[today!['quest'] as int]
+                : hardQuests[(today!['quest'] as int) - quests.length];
+    final isHard = today != null && (today!['quest'] as int) >= quests.length;
     final opened = today?['opened'] == true;
     final completed = today?['completed'] == true;
     final failed = today?['failed'] == true;
@@ -760,11 +786,16 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                               label: t('양피지 열기'),
                               child: TweenAnimationBuilder<double>(
                                 tween: Tween(begin: 0, end: 1),
-                                duration: const Duration(milliseconds: 1100),
-                                curve: Curves.easeOutBack,
+                                duration: const Duration(milliseconds: 2600),
+                                curve: Curves.linear,
                                 builder: (context, value, child) =>
                                     Transform.translate(
-                                        offset: Offset(0, (1 - value) * 18),
+                                        offset: Offset(
+                                            0,
+                                            (1 - value) * 12 +
+                                                sin(value * pi * 6) *
+                                                    5 *
+                                                    (1 - value)),
                                         child: Transform.scale(
                                             scale: .9 + .1 * value,
                                             child: child)),
@@ -795,75 +826,96 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                             ),
                           ),
                         ] else
-                          PixelPanel(
-                            parchment: true,
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Center(
-                                      child: Text(t('오늘의 사이드퀘스트'),
-                                          style: TextStyle(
-                                              color: Color(0xff9a744f),
+                          TweenAnimationBuilder<double>(
+                              tween: Tween(begin: .85, end: 1),
+                              duration: const Duration(milliseconds: 360),
+                              curve: Curves.easeOut,
+                              builder: (context, value, child) => ClipRect(
+                                  child: Align(
+                                      heightFactor: value,
+                                      alignment: Alignment.topCenter,
+                                      child: child)),
+                              child: PixelPanel(
+                                parchment: true,
+                                ornate: isHard,
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      if (!isHard)
+                                        Center(
+                                            child: Text(t('오늘의 사이드퀘스트'),
+                                                style: TextStyle(
+                                                    color: Color(0xff9a744f),
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w700,
+                                                    letterSpacing: .5))),
+                                      const SizedBox(height: 20),
+                                      Text(t(item!.$1),
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                              color: ink,
+                                              fontSize: 21,
+                                              fontWeight: FontWeight.w800,
+                                              height: 1.4)),
+                                      const SizedBox(height: 12),
+                                      Text(t(item.$2),
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                              color: Color(0xff70533a),
+                                              fontFamily: 'sans-serif',
+                                              fontSize: 15,
+                                              height: 1.7)),
+                                      const SizedBox(height: 22),
+                                      if (!resolved) ...[
+                                        Center(
+                                            child: Text(
+                                                isHard
+                                                    ? t('완료 보상 · 10 G')
+                                                        .replaceAll('10', '30')
+                                                    : t('완료 보상 · 10 G'),
+                                                style: TextStyle(
+                                                    color: Color(0xff92704c),
+                                                    fontSize: 12,
+                                                    fontWeight:
+                                                        FontWeight.w700))),
+                                        const SizedBox(height: 10),
+                                        GuildButton(
+                                            label: t('퀘스트 완료'),
+                                            onPressed: busy
+                                                ? null
+                                                : () => update('completed')),
+                                        const SizedBox(height: 8),
+                                        GuildButton(
+                                            label: t('퀘스트 실패'),
+                                            onPressed: busy
+                                                ? null
+                                                : () => update('failed')),
+                                      ] else
+                                        GuildButton(
+                                            label: completed
+                                                ? t('퀘스트 완료')
+                                                : t('퀘스트 실패'),
+                                            onPressed: null),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                          completed
+                                              ? (isHard
+                                                  ? t('작은 모험의 보상으로 10 G를 받았어요.')
+                                                      .replaceAll('10', '30')
+                                                  : t(
+                                                      '작은 모험의 보상으로 10 G를 받았어요.'))
+                                              : failed
+                                                  ? t('괜찮아요. 내일 또 다른 모험이 기다려요.')
+                                                  : t(
+                                                      '완료 여부는 스스로 선택해 주세요. 하지 않아도 괜찮아요.'),
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                              color: Color(0xff957858),
                                               fontSize: 11,
-                                              fontWeight: FontWeight.w700,
-                                              letterSpacing: .5))),
-                                  const SizedBox(height: 20),
-                                  Text(t(item!.$1),
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                          color: ink,
-                                          fontSize: 21,
-                                          fontWeight: FontWeight.w800,
-                                          height: 1.4)),
-                                  const SizedBox(height: 12),
-                                  Text(t(item.$2),
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                          color: Color(0xff70533a),
-                                          fontFamily: 'sans-serif',
-                                          fontSize: 15,
-                                          height: 1.7)),
-                                  const SizedBox(height: 22),
-                                  if (!resolved) ...[
-                                    Center(
-                                        child: Text(t('완료 보상 · 10 G'),
-                                            style: TextStyle(
-                                                color: Color(0xff92704c),
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700))),
-                                    const SizedBox(height: 10),
-                                    GuildButton(
-                                        label: t('퀘스트 완료'),
-                                        onPressed: busy
-                                            ? null
-                                            : () => update('completed')),
-                                    const SizedBox(height: 8),
-                                    GuildButton(
-                                        label: t('퀘스트 실패'),
-                                        onPressed: busy
-                                            ? null
-                                            : () => update('failed')),
-                                  ] else
-                                    GuildButton(
-                                        label: completed
-                                            ? t('퀘스트 완료')
-                                            : t('퀘스트 실패'),
-                                        onPressed: null),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                      completed
-                                          ? t('작은 모험의 보상으로 10 G를 받았어요.')
-                                          : failed
-                                              ? t('괜찮아요. 내일 또 다른 모험이 기다려요.')
-                                              : t(
-                                                  '완료 여부는 스스로 선택해 주세요. 하지 않아도 괜찮아요.'),
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                          color: Color(0xff957858),
-                                          fontSize: 11,
-                                          height: 1.5)),
-                                ]),
-                          ),
+                                              height: 1.5)),
+                                    ]),
+                              )),
                         const SizedBox(height: 24),
                         Center(
                             child: Text(t('평범한 하루에도 모험은 숨어 있으니까요.'),
@@ -875,7 +927,8 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
           ]),
         ))),
         if (revealing)
-          const Positioned.fill(child: IgnorePointer(child: QuestReveal())),
+          Positioned.fill(
+              child: AbsorbPointer(child: QuestReveal(hard: isHard))),
       ]),
     );
   }
@@ -1031,13 +1084,22 @@ class HeaderIconPainter extends CustomPainter {
 class PixelPanel extends StatelessWidget {
   final Widget child;
   final bool parchment;
-  const PixelPanel({super.key, required this.child, this.parchment = false});
+  final bool ornate;
+  const PixelPanel(
+      {super.key,
+      required this.child,
+      this.parchment = false,
+      this.ornate = false});
   @override
   Widget build(BuildContext context) => DecoratedBox(
         decoration: parchment
             ? BoxDecoration(
                 color: const Color(0xffead1a0),
-                border: Border.all(color: const Color(0xff6c4029), width: 6),
+                border: Border.all(
+                    color: ornate
+                        ? const Color(0xffd69a32)
+                        : const Color(0xff6c4029),
+                    width: ornate ? 8 : 6),
                 boxShadow: const [
                   BoxShadow(
                       color: Color(0xff28170e),
@@ -1053,11 +1115,48 @@ class PixelPanel extends StatelessWidget {
                     centerSlice: Rect.fromLTRB(12, 8, 343, 169),
                     fit: BoxFit.fill,
                     filterQuality: FilterQuality.none)),
-        child: Padding(
-            padding: EdgeInsets.fromLTRB(parchment ? 28 : 22,
-                parchment ? 40 : 19, parchment ? 28 : 22, parchment ? 26 : 19),
-            child: child),
+        child: CustomPaint(
+          foregroundPainter: ornate ? const OrnateFramePainter() : null,
+          child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                  parchment ? 28 : 22,
+                  parchment ? 40 : 19,
+                  parchment ? 28 : 22,
+                  parchment ? 26 : 19),
+              child: child),
+        ),
       );
+}
+
+class OrnateFramePainter extends CustomPainter {
+  const OrnateFramePainter();
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gold = Paint()..color = const Color(0xffb77920);
+    final light = Paint()..color = const Color(0xffffd76b);
+    final green = Paint()..color = const Color(0xff57815a);
+    for (final x in [0.0, size.width - 22]) {
+      for (final y in [0.0, size.height - 22]) {
+        canvas.drawRect(Rect.fromLTWH(x, y, 22, 22), gold);
+        canvas.drawRect(Rect.fromLTWH(x + 4, y + 4, 14, 14), light);
+        canvas.drawRect(Rect.fromLTWH(x + 8, y + 8, 6, 6), green);
+      }
+    }
+    for (double y = 32; y < size.height - 24; y += 28) {
+      for (final x in [1.0, size.width - 9]) {
+        canvas.drawRect(Rect.fromLTWH(x, y, 8, 12), gold);
+        canvas.drawRect(Rect.fromLTWH(x + 2, y + 4, 4, 4), green);
+      }
+    }
+    final x = size.width / 2;
+    canvas.drawRect(
+        Rect.fromCenter(center: Offset(x, 6), width: 36, height: 8), gold);
+    canvas.drawRect(
+        Rect.fromCenter(center: Offset(x, 6), width: 20, height: 4), light);
+  }
+
+  @override
+  bool shouldRepaint(covariant OrnateFramePainter oldDelegate) => false;
 }
 
 class GuildButton extends StatefulWidget {
@@ -1111,19 +1210,21 @@ class _GuildButtonState extends State<GuildButton> {
 }
 
 class QuestReveal extends StatelessWidget {
-  const QuestReveal({super.key});
+  final bool hard;
+  const QuestReveal({super.key, this.hard = false});
   @override
   Widget build(BuildContext context) => TweenAnimationBuilder<double>(
         tween: Tween(begin: 0, end: 1),
         duration: const Duration(seconds: 3),
         builder: (context, value, _) =>
-            CustomPaint(painter: QuestRevealPainter(value)),
+            CustomPaint(painter: QuestRevealPainter(value, hard)),
       );
 }
 
 class QuestRevealPainter extends CustomPainter {
   final double progress;
-  QuestRevealPainter(this.progress);
+  final bool hard;
+  QuestRevealPainter(this.progress, this.hard);
   @override
   void paint(Canvas canvas, Size size) {
     final fade = sin(pi * progress).clamp(0.0, 1.0);
@@ -1137,6 +1238,26 @@ class QuestRevealPainter extends CustomPainter {
         Colors.transparent,
       ]).createShader(Rect.fromCircle(center: center, radius: size.width * .7));
     canvas.drawCircle(center, size.width * .7, glow);
+    if (hard) {
+      final rayPaint = Paint()
+        ..color = const Color(0xffffe8a0).withValues(alpha: .65 * fade)
+        ..strokeWidth = 4;
+      for (var i = 0; i < 12; i++) {
+        final a = i * pi / 6 + progress * .25;
+        final direction = Offset(cos(a), sin(a));
+        canvas.drawLine(center + direction * size.width * .23,
+            center + direction * size.width * .8, rayPaint);
+      }
+      final ring = Paint()
+        ..color = const Color(0xffffe2a0).withValues(alpha: .8 * fade)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3;
+      canvas.drawCircle(center, size.width * (.15 + .5 * progress), ring);
+      final flash = ((progress - .65) / .17).clamp(0.0, 1.0) *
+          ((1 - progress) / .12).clamp(0.0, 1.0);
+      canvas.drawRect(Offset.zero & size,
+          Paint()..color = Colors.white.withValues(alpha: flash));
+    }
     final star = Paint()..color = Color(0xffffe5a2).withValues(alpha: fade);
     for (var i = 0; i < 16; i++) {
       final angle = i * 2 * pi / 16 + progress * .4;
@@ -1150,5 +1271,5 @@ class QuestRevealPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant QuestRevealPainter oldDelegate) =>
-      oldDelegate.progress != progress;
+      oldDelegate.progress != progress || oldDelegate.hard != hard;
 }

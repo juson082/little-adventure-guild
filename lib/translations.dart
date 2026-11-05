@@ -1,3 +1,4 @@
+import 'hard_quests.dart';
 import 'translations_extra.dart';
 import 'quest_translations_en.dart';
 import 'quest_translations_es.dart';
@@ -201,7 +202,8 @@ const translations = <String, Map<String, String>>{
 };
 String translate(String language, String key) => language == 'ko'
     ? key
-    : (translations[language]?[key] ??
+    : (hardQuestTranslations[language]?[key] ??
+        translations[language]?[key] ??
         extraTranslations[language]?[key] ??
         greetingTranslations[language]?[key] ??
         questTranslations[language]?[key] ??

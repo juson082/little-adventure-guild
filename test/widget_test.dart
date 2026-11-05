@@ -1,4 +1,6 @@
 import 'package:little_adventure_guild/guild_content.dart';
+import 'package:little_adventure_guild/hard_quests.dart';
+import 'dart:convert';
 import 'package:little_adventure_guild/translations.dart';
 import 'package:little_adventure_guild/greeting_translations.dart';
 import 'package:flutter/widgets.dart';
@@ -8,8 +10,20 @@ import 'package:little_adventure_guild/main.dart';
 
 void main() {
   testWidgets('퀘스트를 열고 완료한 상태가 다시 열어도 유지된다', (tester) async {
-    SharedPreferences.setMockInitialValues(
-        {'tutorial_complete': true, 'language_override': 'ko'});
+    final now = DateTime.now();
+    final date =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    SharedPreferences.setMockInitialValues({
+      'tutorial_complete': true,
+      'language_override': 'ko',
+      'today': jsonEncode({
+        'date': date,
+        'quest': 0,
+        'catalogVersion': 1,
+        'opened': false,
+        'completed': false
+      }),
+    });
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('openQuest')), findsNothing);
@@ -308,4 +322,50 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('길드 꾸미기'), findsOneWidget);
   });
+
+  test('어려운 의뢰 20개는 모든 지원 언어에 번역된다', () {
+    expect(hardQuests.length, 20);
+    for (final language in ['en', 'ja', 'zh', 'hi', 'es']) {
+      for (final quest in hardQuests) {
+        expect(translate(language, quest.$1), isNot(quest.$1));
+        expect(translate(language, quest.$2), isNot(quest.$2));
+      }
+    }
+  });
+  for (final complete in [true, false]) {
+    testWidgets(complete ? '어려운 의뢰 성공은 30골드를 준다' : '어려운 의뢰 실패는 보상이 없다',
+        (tester) async {
+      final now = DateTime.now();
+      final date =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      SharedPreferences.setMockInitialValues({
+        'tutorial_complete': true,
+        'language_override': 'ko',
+        'last_greeting_date': date,
+        'today': jsonEncode({
+          'date': date,
+          'quest': quests.length,
+          'catalogVersion': 1,
+          'opened': true,
+          'completed': false,
+          'gold': 5
+        }),
+      });
+      await tester.pumpWidget(const GuildApp());
+      await tester.pumpAndSettle();
+      expect(find.text(hardQuests.first.$1), findsOneWidget);
+      expect(find.textContaining('30 G'), findsWidgets);
+      expect(find.text('특별 의뢰'), findsNothing);
+      final action = find.text(complete ? '퀘스트 완료' : '퀘스트 실패');
+      await tester.ensureVisible(action);
+      await tester.pumpAndSettle();
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      final prefs = await SharedPreferences.getInstance();
+      final saved =
+          jsonDecode(prefs.getString('today')!) as Map<String, dynamic>;
+      expect(saved['gold'], complete ? 35 : 5);
+      expect(saved[complete ? 'completed' : 'failed'], isTrue);
+    });
+  }
 }
