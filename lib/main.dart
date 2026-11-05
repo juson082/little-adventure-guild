@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'guild_content.dart';
+import 'quest_environment.dart';
+import 'quest_schedule.dart';
+import 'environment_service.dart';
 import 'guild_decorations.dart';
 import 'hard_quests.dart';
 import 'translations.dart';
@@ -102,6 +106,9 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   Map<String, dynamic>? today;
   String? error;
   bool busy = false;
+  bool loading = false;
+  static const weatherPreference = 'weather_location_enabled';
+  static const environmentService = EnvironmentService();
   bool rewarding = false;
   Offset rewardStart = Offset.zero;
   Offset rewardEnd = Offset.zero;
@@ -110,6 +117,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   final completeKey = GlobalKey();
   final ScrollController screenScroll = ScrollController();
   Timer? dateTimer;
+  Timer? questExpiryTimer;
   Timer? greetingTimer;
   Timer? tutorialPauseTimer;
   bool tutorialPaused = false;
@@ -141,14 +149,15 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     load();
     dateTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (today != null && today!['date'] != dateKey && !busy && !rewarding) {
-        load();
+      if (questHasExpired(today, DateTime.now()) && !busy && !rewarding) {
+        load(isVisit: false);
       }
     });
   }
 
   @override
   void dispose() {
+    questExpiryTimer?.cancel();
     screenScroll.dispose();
     greetingTimer?.cancel();
     tutorialPauseTimer?.cancel();
@@ -164,12 +173,31 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && today?['date'] != dateKey) load();
+    if (state == AppLifecycleState.resumed &&
+        (questHasExpired(today, DateTime.now()) ||
+            (prefs != null &&
+                prefs!.getString('last_visit_date') != dateKey))) {
+      load();
+    }
   }
 
-  Future<void> load() async {
+  Future<void> load({bool isVisit = true}) async {
+    if (loading) return;
+    loading = true;
     try {
       final store = await SharedPreferences.getInstance();
+      final completedTutorial =
+          tutorialComplete ?? store.getBool('tutorial_complete') ?? false;
+      languageOverride = store.getString('language_override');
+      if (isVisit &&
+          Platform.isAndroid &&
+          completedTutorial &&
+          !store.containsKey(weatherPreference)) {
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted) return;
+        await offerWeatherChoice(store);
+        if (!mounted) return;
+      }
       final raw = store.getString('today');
       Map<String, dynamic>? saved;
       String? previousQuestDate;
@@ -177,7 +205,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
         saved = Map<String, dynamic>.from(jsonDecode(raw) as Map);
         previousQuestDate =
             saved['date'] is String ? saved['date'] as String : null;
-        if (saved['catalogVersion'] == null && saved['date'] == dateKey) {
+        if (saved['catalogVersion'] == null) {
           const legacyQuests = <(String, String)>[
             ('잠시 하늘을 올려다보기', '잠시 걸음을 멈추고 구름이나 별이 떠 있는 하늘을 바라봐.'),
             ('오래된 사진 꺼내 보기', '마음에 남은 오래된 사진 한 장을 꺼내 천천히 들여다봐.'),
@@ -201,8 +229,25 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
           throw const FormatException('잘못된 퀘스트 기록');
         }
       }
-      if (saved == null || saved['date'] != dateKey) {
-        final index = Random().nextInt(quests.length + hardQuests.length);
+      // Older versions did not record the opening instant. Keep the existing
+      // opened quest for a full 24 hours from migration instead of replacing it.
+      if (saved != null &&
+          saved['opened'] == true &&
+          saved['opened_at_ms'] is! int) {
+        saved['opened_at_ms'] = DateTime.now().toUtc().millisecondsSinceEpoch;
+        if (!await store.setString('today', jsonEncode(saved))) {
+          throw Exception('save failed');
+        }
+      }
+      if (saved == null || questHasExpired(saved, DateTime.now())) {
+        WeatherObservation? weather;
+        if (store.getBool(weatherPreference) == true) {
+          weather = await environmentService
+              .currentWeather()
+              .timeout(const Duration(seconds: 14), onTimeout: () => null);
+        }
+        final index =
+            chooseDailyQuest(QuestEnvironment(weather: weather), Random());
         saved = {
           'gold': saved?['gold'] ?? 0,
           'unlocked': saved?['unlocked'] ?? <String>[],
@@ -218,8 +263,6 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
           throw Exception('저장 실패');
         }
       }
-      final completedTutorial =
-          tutorialComplete ?? store.getBool('tutorial_complete') ?? false;
       final previousVisit = DateTime.tryParse(
           store.getString('last_visit_date') ?? previousQuestDate ?? '');
       final currentDate = DateTime.parse(dateKey);
@@ -229,15 +272,17 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
               .difference(DateTime.utc(
                   previousVisit.year, previousVisit.month, previousVisit.day))
               .inDays;
-      final shouldGreet =
-          completedTutorial && store.getString('last_greeting_date') != dateKey;
+      final shouldGreet = isVisit &&
+          completedTutorial &&
+          store.getString('last_greeting_date') != dateKey;
       final choices = absentDays >= 3 ? guildReturnGreetings : guildGreetings;
       final selectedGreeting = choices[Random().nextInt(choices.length)];
       if (shouldGreet &&
           !await store.setString('last_greeting_date', dateKey)) {
         throw Exception('저장 실패');
       }
-      if (store.getString('last_visit_date') != dateKey &&
+      if (isVisit &&
+          store.getString('last_visit_date') != dateKey &&
           !await store.setString('last_visit_date', dateKey)) {
         throw Exception('저장 실패');
       }
@@ -249,16 +294,41 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
           tutorialComplete = completedTutorial;
           languageOverride = store.getString('language_override');
           if (shouldGreet) greeting = selectedGreeting;
-          showGreeting = shouldGreet;
-          greetingFinished = completedTutorial && !shouldGreet;
+          if (isVisit) {
+            showGreeting = shouldGreet;
+            greetingFinished = completedTutorial && !shouldGreet;
+          }
         });
       }
+      scheduleQuestExpiry();
       if (shouldGreet) {
         startGreeting();
       }
     } catch (_) {
       if (mounted) setState(() => error = t('오늘의 의뢰를 불러오지 못했어요. 다시 시도해 주세요.'));
+    } finally {
+      loading = false;
     }
+  }
+
+  void scheduleQuestExpiry() {
+    questExpiryTimer?.cancel();
+    final remaining = timeUntilQuestExpiry(today, DateTime.now());
+    if (remaining == null) return;
+    if (remaining <= Duration.zero) {
+      questExpiryTimer = Timer(const Duration(seconds: 1), () {
+        if (mounted && !busy && !rewarding) load(isVisit: false);
+      });
+      return;
+    }
+    questExpiryTimer = Timer(remaining, () {
+      if (!mounted) return;
+      if (!busy && !rewarding) {
+        load(isVisit: false);
+      } else {
+        scheduleQuestExpiry();
+      }
+    });
   }
 
   void startGreeting() {
@@ -316,16 +386,28 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     } finally {
       if (mounted) setState(() => busy = false);
     }
+    if (mounted &&
+        Platform.isAndroid &&
+        tutorialComplete == true &&
+        prefs != null &&
+        !prefs!.containsKey(weatherPreference)) {
+      await offerWeatherChoice(prefs!);
+    }
   }
 
   Future<void> openQuest() async {
     if (busy || revealing || today == null) return;
+    if (questHasExpired(today, DateTime.now())) {
+      await load();
+      return;
+    }
+    final openedAt = DateTime.now().toUtc().millisecondsSinceEpoch;
     setState(() => revealing = true);
     await Future<void>.delayed(MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : const Duration(seconds: 3));
     if (!mounted) return;
-    await update('opened');
+    await update('opened', openedAt: openedAt);
     if (mounted) setState(() => revealing = false);
   }
 
@@ -338,7 +420,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
         today!['failed'] == true) {
       return;
     }
-    if (today!['date'] != dateKey) {
+    if (questHasExpired(today, DateTime.now())) {
       await load();
       return;
     }
@@ -378,9 +460,9 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     if (mounted) setState(() => rewarding = false);
   }
 
-  Future<void> update(String key) async {
+  Future<void> update(String key, {int? openedAt}) async {
     if (busy || today == null) return;
-    if (today!['date'] != dateKey) {
+    if (questHasExpired(today, DateTime.now())) {
       await load();
       return;
     }
@@ -392,6 +474,10 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     }
     setState(() => busy = true);
     final next = {...today!, key: true};
+    if (key == 'opened') {
+      next['opened_at_ms'] =
+          openedAt ?? DateTime.now().toUtc().millisecondsSinceEpoch;
+    }
     if (key == 'completed') {
       final isHard = (today!['quest'] as int) >= quests.length;
       next['gold'] = (today!['gold'] as int? ?? 0) + (isHard ? 30 : 10);
@@ -400,7 +486,10 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
       if (!await prefs!.setString('today', jsonEncode(next))) {
         throw Exception('저장 실패');
       }
-      if (mounted) setState(() => today = next);
+      if (mounted) {
+        setState(() => today = next);
+        if (key == 'opened') scheduleQuestExpiry();
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -413,7 +502,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
 
   Future<bool> selectDecoration(GuildDecoration decoration) async {
     if (busy || today == null || prefs == null) return false;
-    if (today!['date'] != dateKey) {
+    if (questHasExpired(today, DateTime.now())) {
       await load();
       return false;
     }
@@ -614,11 +703,155 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                       const SizedBox(height: 7),
                     ],
                     const SizedBox(height: 6),
+                    if (Platform.isAndroid) ...[
+                      GuildButton(
+                          label: t('위치와 날씨'),
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                            showWeatherSettings();
+                          }),
+                      const SizedBox(height: 7),
+                    ],
                     GuildButton(
                         label: t('돌아가기'),
                         onPressed: () => Navigator.pop(dialogContext)),
                   ]))),
             ));
+  }
+
+  Widget weatherExplanation() =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(t('주변 날씨를 사용하면 그날에 어울리는 의뢰를 고를 수 있어요. 허용하면 대략적인 위치가 날씨 서비스 Open-Meteo에 전송됩니다. 앱은 위치를 저장하지 않습니다.'),
+            style: const TextStyle(
+                color: ink,
+                fontFamily: 'sans-serif',
+                fontSize: 13,
+                height: 1.5)),
+        const SizedBox(height: 8),
+        Text(t('오늘 받은 의뢰는 설정을 바꿔도 바뀌지 않아요.'),
+            style: const TextStyle(
+                color: brown, fontFamily: 'sans-serif', fontSize: 12)),
+        const SizedBox(height: 8),
+        Text(t('날씨 자료: Open-Meteo · CC BY 4.0'),
+            style: const TextStyle(
+                color: brown, fontFamily: 'sans-serif', fontSize: 12)),
+        const SelectableText(
+            'https://open-meteo.com/  ·  https://creativecommons.org/licenses/by/4.0/',
+            style: TextStyle(
+                color: brown, fontFamily: 'sans-serif', fontSize: 10)),
+      ]);
+
+  Future<void> offerWeatherChoice(SharedPreferences store) async {
+    if (!mounted || store.containsKey(weatherPreference)) return;
+    final allow = await showGuildDialog<bool>(
+        context: context,
+        builder: (dialogContext) => Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.all(24),
+              child: SingleChildScrollView(
+                  child: PixelPanel(
+                      child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(t('위치와 날씨'),
+                      style: const TextStyle(
+                          color: ink,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 14),
+                  weatherExplanation(),
+                  const SizedBox(height: 16),
+                  GuildButton(
+                      label: t('사용하기'),
+                      onPressed: () => Navigator.pop(dialogContext, true)),
+                  const SizedBox(height: 8),
+                  GuildButton(
+                      label: t('사용 안 함'),
+                      onPressed: () => Navigator.pop(dialogContext, false)),
+                ],
+              ))),
+            ));
+    if (!mounted) return;
+    final enabled =
+        allow == true && await environmentService.requestLocationPermission();
+    if (!await store.setBool(weatherPreference, enabled)) {
+      throw Exception('save failed');
+    }
+    if (mounted && allow == true && !enabled) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(t('위치 권한을 허용하면 날씨를 사용할 수 있어요. 기기 설정에서 권한을 확인해 주세요.'))));
+    }
+  }
+
+  Future<void> showWeatherSettings() async {
+    final store = prefs ?? await SharedPreferences.getInstance();
+    if (!mounted) return;
+    var enabled = store.getBool(weatherPreference) ?? false;
+    var changing = false;
+    await showGuildDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, refresh) => Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+                child: PixelPanel(
+                    child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(t('위치와 날씨'),
+                    style: const TextStyle(
+                        color: ink, fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 14),
+                weatherExplanation(),
+                const SizedBox(height: 16),
+                GuildButton(
+                    label: '${t('위치와 날씨')} · ${t(enabled ? '켜짐' : '꺼짐')}',
+                    onPressed: changing
+                        ? null
+                        : () async {
+                            refresh(() => changing = true);
+                            try {
+                              final wasEnabled = enabled;
+                              final next = enabled
+                                  ? false
+                                  : await environmentService
+                                      .requestLocationPermission();
+                              if (!await store.setBool(
+                                  weatherPreference, next)) {
+                                throw Exception('save failed');
+                              }
+                              if (!dialogContext.mounted) return;
+                              refresh(() => enabled = next);
+                              if (!wasEnabled && !next) {
+                                ScaffoldMessenger.of(dialogContext)
+                                    .showSnackBar(SnackBar(
+                                        content: Text(t(
+                                            '위치 권한을 허용하면 날씨를 사용할 수 있어요. 기기 설정에서 권한을 확인해 주세요.'))));
+                              }
+                            } catch (_) {
+                              if (dialogContext.mounted) {
+                                ScaffoldMessenger.of(dialogContext)
+                                    .showSnackBar(SnackBar(
+                                        content: Text(
+                                            t('기록을 저장하지 못했어요. 다시 시도해 주세요.'))));
+                              }
+                            } finally {
+                              if (dialogContext.mounted) {
+                                refresh(() => changing = false);
+                              }
+                            }
+                          }),
+                const SizedBox(height: 8),
+                GuildButton(
+                    label: t('돌아가기'),
+                    onPressed: () => Navigator.pop(dialogContext)),
+              ],
+            )))),
+      ),
+    );
   }
 
   void showInfo(bool support) {

@@ -34,8 +34,15 @@ void main() {
     expect(find.byKey(const ValueKey('openQuest')), findsOneWidget);
     await tester.ensureVisible(find.byKey(const ValueKey('openQuest')));
     await tester.pumpAndSettle();
+    final tappedAt = DateTime.now().toUtc().millisecondsSinceEpoch;
     await tester.tap(find.byKey(const ValueKey('openQuest')));
     await tester.pumpAndSettle();
+    final opened =
+        jsonDecode((await SharedPreferences.getInstance()).getString('today')!)
+            as Map;
+    expect(opened['opened_at_ms'], greaterThanOrEqualTo(tappedAt));
+    expect(opened['opened_at_ms'],
+        lessThanOrEqualTo(DateTime.now().toUtc().millisecondsSinceEpoch));
     expect(find.text('퀘스트 완료'), findsOneWidget);
     await tester.ensureVisible(find.text('퀘스트 완료'));
     await tester.pumpAndSettle();
@@ -476,6 +483,10 @@ void main() {
         'quest': 0,
         'catalogVersion': 1,
         'opened': true,
+        'opened_at_ms': DateTime.now()
+            .subtract(const Duration(hours: 25))
+            .toUtc()
+            .millisecondsSinceEpoch,
         'gold': 73,
         'unlocked': ['sword', 'crystal'],
         'active_items': ['sword', 'crystal']
@@ -488,5 +499,87 @@ void main() {
     expect(saved['gold'], 73);
     expect(saved['unlocked'], ['sword', 'crystal']);
     expect(saved['active_items'], ['sword', 'crystal']);
+    expect(saved['opened'], isFalse);
+  });
+
+  testWidgets('열지 않은 오래된 의뢰와 24시간 미만 의뢰는 바뀌지 않는다', (tester) async {
+    final now = DateTime.now();
+    final oldDate =
+        '${now.subtract(const Duration(days: 2)).year}-${now.subtract(const Duration(days: 2)).month.toString().padLeft(2, '0')}-${now.subtract(const Duration(days: 2)).day.toString().padLeft(2, '0')}';
+    for (final opened in [false, true]) {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+      SharedPreferences.setMockInitialValues({
+        'tutorial_complete': true,
+        'today': jsonEncode({
+          'date': oldDate,
+          'quest': 7,
+          'catalogVersion': 1,
+          'opened': opened,
+          if (opened)
+            'opened_at_ms': now
+                .subtract(const Duration(hours: 23))
+                .toUtc()
+                .millisecondsSinceEpoch
+        })
+      });
+      await tester.pumpWidget(GuildApp(key: ValueKey('kept-$opened')));
+      await tester.pumpAndSettle();
+      final store = await SharedPreferences.getInstance();
+      final saved = jsonDecode(store.getString('today')!) as Map;
+      expect(saved['quest'], 7);
+      expect(saved['opened'], opened);
+    }
+  });
+  testWidgets('예전 열린 의뢰는 이전 시각이 없어도 보존하고 기준 시각을 기록한다', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'tutorial_complete': true,
+      'today': jsonEncode({
+        'date': '2020-01-01',
+        'quest': 7,
+        'catalogVersion': 1,
+        'opened': true
+      })
+    });
+    await tester.pumpWidget(const GuildApp());
+    await tester.pumpAndSettle();
+    final store = await SharedPreferences.getInstance();
+    final saved = jsonDecode(store.getString('today')!) as Map;
+    expect(saved['quest'], 7);
+    expect(saved['opened'], isTrue);
+    expect(saved['opened_at_ms'], isA<int>());
+  });
+
+  testWidgets('새 날짜의 인사는 남은 24시간 의뢰와 별도로 표시된다', (tester) async {
+    final now = DateTime.now();
+    final yesterday = now.subtract(const Duration(days: 1));
+    final oldDate =
+        '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
+    SharedPreferences.setMockInitialValues({
+      'tutorial_complete': true,
+      'language_override': 'ko',
+      'last_visit_date': oldDate,
+      'last_greeting_date': oldDate,
+      'today': jsonEncode({
+        'date': oldDate,
+        'quest': 7,
+        'catalogVersion': 1,
+        'opened': true,
+        'opened_at_ms': now
+            .subtract(const Duration(hours: 2))
+            .toUtc()
+            .millisecondsSinceEpoch,
+      }),
+    });
+    await tester.pumpWidget(const GuildApp());
+    await tester.pumpAndSettle();
+    expect(
+        find.byWidgetPredicate(
+            (w) => w is Text && guildGreetings.contains(w.data)),
+        findsOneWidget);
+    final store = await SharedPreferences.getInstance();
+    final saved = jsonDecode(store.getString('today')!) as Map;
+    expect(saved['quest'], 7);
+    expect(saved['opened'], isTrue);
   });
 }
