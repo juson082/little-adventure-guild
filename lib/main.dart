@@ -44,7 +44,14 @@ class _GuildAppState extends State<GuildApp> {
   Widget build(BuildContext context) => MaterialApp(
         title: 'Hvildir',
         locale: languageOverride == null ? null : Locale(languageOverride!),
-        supportedLocales: const [Locale('en'), Locale('ko'), Locale('ja')],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('ko'),
+          Locale('ja'),
+          Locale('zh'),
+          Locale('hi'),
+          Locale('es')
+        ],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
         localeResolutionCallback: (locale, supported) => supported.firstWhere(
             (v) => v.languageCode == locale?.languageCode,
@@ -85,7 +92,9 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     final dispatcher = WidgetsBinding.instance.platformDispatcher;
     final code = languageOverride ??
         (dispatcher.locales.isEmpty ? 'en' : dispatcher.locale.languageCode);
-    return const ['ko', 'en', 'ja'].contains(code) ? code : 'en';
+    return const ['ko', 'en', 'ja', 'zh', 'hi', 'es'].contains(code)
+        ? code
+        : 'en';
   }
 
   String t(String text) => translate(language, text);
@@ -359,11 +368,12 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
         builder: (dialogContext) => Dialog(
               backgroundColor: Colors.transparent,
               insetPadding: const EdgeInsets.all(24),
-              child: PixelPanel(
-                  child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+              child: SingleChildScrollView(
+                  child: PixelPanel(
+                      child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
                     Text(t('언어'),
                         style: const TextStyle(
                             color: ink,
@@ -374,7 +384,10 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                       ('device', t('기기 설정 따르기')),
                       ('ko', '한국어'),
                       ('en', 'English'),
-                      ('ja', '日本語')
+                      ('ja', '日本語'),
+                      ('zh', '简体中文'),
+                      ('hi', 'हिन्दी'),
+                      ('es', 'Español')
                     ]) ...[
                       GuildButton(
                           label:
@@ -408,7 +421,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                     GuildButton(
                         label: t('돌아가기'),
                         onPressed: () => Navigator.pop(dialogContext)),
-                  ])),
+                  ]))),
             ));
   }
 
@@ -598,28 +611,29 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (!tutorialPaused) PixelPanel(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                            Text(t('길드주인'),
-                                style: TextStyle(
-                                    color: Color(0xff926c49),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: .5)),
-                            const SizedBox(height: 7),
-                            Text(
-                                tutorialComplete == false
-                                    ? t(guildTutorial[tutorialStep])
-                                    : t(greeting),
-                                style: const TextStyle(
-                                    color: ink,
-                                    fontFamily: 'sans-serif',
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.6)),
-                          ])),
+                      if (!tutorialPaused)
+                        PixelPanel(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              Text(t('길드주인'),
+                                  style: TextStyle(
+                                      color: Color(0xff926c49),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: .5)),
+                              const SizedBox(height: 7),
+                              Text(
+                                  tutorialComplete == false
+                                      ? t(guildTutorial[tutorialStep])
+                                      : t(greeting),
+                                  style: const TextStyle(
+                                      color: ink,
+                                      fontFamily: 'sans-serif',
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.6)),
+                            ])),
                       const SizedBox(height: 20),
                       if (tutorialPaused)
                         const SizedBox.shrink()

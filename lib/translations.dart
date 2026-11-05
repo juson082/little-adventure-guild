@@ -1,3 +1,5 @@
+import 'translations_extra.dart';
+
 // Korean is the authoring language. Add matching translations for each new quest.
 const translations = <String, Map<String, String>>{
   'en': {
@@ -138,8 +140,7 @@ const translations = <String, Map<String, String>>{
         '依頼書を開いて、気が向いたらやってみてくれ。\n終わったら、成功か失敗かをわしに報告するだけでいい。',
     '퀘스트에 성공하면 골드를 줄게.\n모은 골드로는 길드 내부를 자네 취향대로 꾸밀 수 있어.':
         'クエストに成功したらゴールドを渡そう。\n集めたゴールドで、ギルドの中を好きなように飾れるぞ。',
-    '응? 성공했는지 자기가 직접 보고하는 거냐고?':
-        'ん？ 成功したかどうか、自分で報告するのかって？',
+    '응? 성공했는지 자기가 직접 보고하는 거냐고?': 'ん？ 成功したかどうか、自分で報告するのかって？',
     '자네가 퀘스트를 잘하고 있는지 알아보려면 감시 마법을 써야 하잖아.\n그런데 우리 길드엔 마법사가 없거든!':
         'クエストの様子を確かめるには、監視の魔法が必要じゃろう。\nところが、うちのギルドには魔法使いがおらんのじゃ！',
     '뭐, 마법사가 있었다 해도 굳이 감시하진 않았을 거야.\n난 자네를 믿으니까!':
@@ -186,4 +187,7 @@ const translations = <String, Map<String, String>>{
 };
 String translate(String language, String key) => language == 'ko'
     ? key
-    : (translations[language]?[key] ?? translations['en']?[key] ?? key);
+    : (translations[language]?[key] ??
+        extraTranslations[language]?[key] ??
+        translations['en']?[key] ??
+        key);

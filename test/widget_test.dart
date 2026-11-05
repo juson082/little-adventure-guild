@@ -1,5 +1,6 @@
 import 'package:little_adventure_guild/guild_content.dart';
 import 'package:little_adventure_guild/translations.dart';
+import 'package:little_adventure_guild/translations_extra.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -114,12 +115,17 @@ void main() {
     SharedPreferences.setMockInitialValues({'language_override': 'ko'});
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
-    expect(find.textContaining('새로운 모험가로구나'), findsOneWidget);
+    expect(find.textContaining('리얼 월드에서 메인 퀘스트'), findsOneWidget);
     expect(find.text('양피지 열기'), findsNothing);
-    for (var i = 0; i < 5; i++) {
+    for (var i = 0; i < guildTutorial.length - 1; i++) {
       await tester.ensureVisible(find.text('다음 이야기'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('다음 이야기'));
+      if (i == tutorialPauseAfterStep) {
+        await tester.pump();
+        expect(find.text('다음 이야기'), findsNothing);
+        await tester.pump(const Duration(seconds: 3));
+      }
       await tester.pumpAndSettle();
     }
     expect(find.text('모험 시작하기'), findsOneWidget);
@@ -191,12 +197,51 @@ void main() {
       ...guildTutorial,
       for (final q in quests) ...[q.$1, q.$2]
     ];
-    for (final language in ['en', 'ja']) {
+    for (final language in ['en', 'ja', 'zh', 'hi', 'es']) {
       for (final source in content) {
-        expect(translations[language]!.containsKey(source), isTrue,
+        expect(
+            (translations[language] ?? extraTranslations[language])!
+                .containsKey(source),
+            isTrue,
             reason: '$language: $source');
       }
     }
+  });
+  for (final (code, expected) in [
+    ('zh', '欢迎回来！'),
+    ('hi', 'अरे, आ गए तुम!'),
+    ('es', '¡Qué bueno verte!'),
+  ]) {
+    testWidgets('$code 기기 언어로 인사와 UI가 표시된다', (tester) async {
+      tester.binding.platformDispatcher.localeTestValue = Locale(code);
+      addTearDown(tester.binding.platformDispatcher.clearLocaleTestValue);
+      SharedPreferences.setMockInitialValues({'tutorial_complete': true});
+      await tester.pumpWidget(const GuildApp());
+      await tester.pumpAndSettle();
+      expect(find.text(expected), findsOneWidget);
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+      expect(find.text(extraTranslations[code]!['양피지 열기']!), findsOneWidget);
+    });
+  }
+  testWidgets('튜토리얼 중 언어를 바꾸면 대사가 바뀌고 설정이 유지된다', (tester) async {
+    SharedPreferences.setMockInitialValues({'language_override': 'ko'});
+    await tester.pumpWidget(const GuildApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('길드 메뉴'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('설정'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Español'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Español'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('misión principal en el mundo real'),
+        findsOneWidget);
+    await tester.pumpWidget(const GuildApp(key: ValueKey('spanish restart')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('misión principal en el mundo real'),
+        findsOneWidget);
   });
   testWidgets('골드 버튼으로 길드 꾸미기를 연다', (tester) async {
     SharedPreferences.setMockInitialValues(
