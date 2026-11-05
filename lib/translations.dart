@@ -1,4 +1,18 @@
 import 'translations_extra.dart';
+import 'quest_translations_en.dart';
+import 'quest_translations_es.dart';
+import 'quest_translations_ja.dart';
+import 'quest_translations_zh.dart';
+import 'quest_translations_hi.dart';
+import 'greeting_translations.dart';
+
+const questTranslations = <String, Map<String, String>>{
+  'en': questTranslationsEn,
+  'es': questTranslationsEs,
+  'ja': questTranslationsJa,
+  'zh': questTranslationsZh,
+  'hi': questTranslationsHi,
+};
 
 // Korean is the authoring language. Add matching translations for each new quest.
 const translations = <String, Map<String, String>>{
@@ -28,9 +42,9 @@ const translations = <String, Map<String, String>>{
         'If you wish, send supplies to help these little adventures continue tomorrow.',
     '다른 모험가들과 나누고 싶은 작은 경험이 있나요? 당신의 의뢰가 언젠가 오늘의 퀘스트가 될지도 모릅니다.':
         'Is there a small experience you would like to share? Your suggestion may become a future quest.',
-    '작은 보급품': 'Small supplies',
-    '든든한 보급품': 'Generous supplies',
-    '특별 보급품': 'Special supplies',
+    '작은 보급품': 'A little supply bundle',
+    '든든한 보급품': 'A generous supply bundle',
+    '특별 보급품': 'A special supply bundle',
     '후원 기능은 준비 중이에요. 모든 퀘스트는 언제나 무료입니다.':
         'Support is coming soon. Every quest is always free.',
     '의뢰 접수는 준비 중이에요. 후원 여부는 의뢰 채택에 영향을 주지 않습니다.':
@@ -61,7 +75,7 @@ const translations = <String, Map<String, String>>{
     '오늘의 사이드퀘스트': 'Today’s side quest',
     '완료 보상 · 10 G': 'Completion reward · 10 G',
     '퀘스트 완료': 'Quest complete',
-    '퀘스트 실패': 'Quest incomplete',
+    '퀘스트 실패': 'Quest failed',
     '작은 모험의 보상으로 10 G를 받았어요.': 'You received 10 G for your little adventure.',
     '괜찮아요. 내일 또 다른 모험이 기다려요.':
         'That’s all right. Another adventure awaits tomorrow.',
@@ -72,7 +86,7 @@ const translations = <String, Map<String, String>>{
     '오늘의 의뢰를 불러오지 못했어요. 다시 시도해 주세요.':
         'Could not load today’s quest. Please try again.',
     '안내 진행 상태를 저장하지 못했어요. 다시 시도해 주세요.':
-        'Could not save your progress. Please try again.',
+        'Could not save your tutorial progress. Please try again.',
     '기록을 저장하지 못했어요. 다시 시도해 주세요.':
         'Could not save your progress. Please try again.',
     '꾸미기 기록을 저장하지 못했어요.': 'Could not save your decorations.',
@@ -155,7 +169,7 @@ const translations = <String, Map<String, String>>{
     '오늘의 사이드퀘스트': '今日のサイドクエスト',
     '완료 보상 · 10 G': '達成報酬 · 10 G',
     '퀘스트 완료': 'クエスト達成',
-    '퀘스트 실패': 'クエスト未達成',
+    '퀘스트 실패': 'クエスト失敗',
     '작은 모험의 보상으로 10 G를 받았어요.': '小さな冒険の報酬として10 Gを受け取りました。',
     '괜찮아요. 내일 또 다른 모험이 기다려요.': '大丈夫。明日また別の冒険が待っています。',
     '완료 여부는 스스로 선택해 주세요. 하지 않아도 괜찮아요.': '結果は自分で報告してください。できなくても大丈夫です。',
@@ -189,5 +203,7 @@ String translate(String language, String key) => language == 'ko'
     ? key
     : (translations[language]?[key] ??
         extraTranslations[language]?[key] ??
+        greetingTranslations[language]?[key] ??
+        questTranslations[language]?[key] ??
         translations['en']?[key] ??
         key);

@@ -2,7 +2,7 @@
 const extraTranslations = <String, Map<String, String>>{
   'zh': {
     '작은 모험 길드': '小小冒险公会',
-    '길드주인': '公会主人',
+    '길드주인': '公会会长',
     '길드 메뉴': '公会菜单',
     '닫기': '关闭',
     '돌아가기': '返回',
@@ -47,7 +47,7 @@ const extraTranslations = <String, Map<String, String>>{
     '그러니 퀘스트가 끝나면 양심껏 보고해 줘.\n실패해도 괜찮아. 내일이면 또 다른 의뢰가 찾아올 테니까.':
         '所以任务结束后，如实报告就好。\n失败也没关系，明天还会有新的委托。',
     '자, 그럼 오늘의 의뢰서를 받게!': '好，来领取今天的委托书吧！',
-    '길드주인의 이야기를 듣고 있어요…': '正在听公会主人说话…',
+    '길드주인의 이야기를 듣고 있어요…': '正在听公会会长说话…',
     '오늘의 의뢰가 도착했어요': '今天的委托到了',
     '양피지 열기': '打开卷轴',
     '봉인을 눌러 의뢰를 확인하세요': '点击封印查看委托',
@@ -97,9 +97,9 @@ const extraTranslations = <String, Map<String, String>>{
         'Si quieres, envía suministros al gremio para que estas pequeñas aventuras continúen mañana.',
     '다른 모험가들과 나누고 싶은 작은 경험이 있나요? 당신의 의뢰가 언젠가 오늘의 퀘스트가 될지도 모릅니다.':
         '¿Hay alguna pequeña experiencia que quieras compartir? Tu propuesta podría convertirse en una misión diaria.',
-    '작은 보급품': 'Pocos suministros',
-    '든든한 보급품': 'Buenos suministros',
-    '특별 보급품': 'Suministros especiales',
+    '작은 보급품': 'Paquete pequeño',
+    '든든한 보급품': 'Paquete generoso',
+    '특별 보급품': 'Paquete especial',
     '후원 기능은 준비 중이에요. 모든 퀘스트는 언제나 무료입니다.':
         'La opción de apoyo está en preparación. Todas las misiones son siempre gratis.',
     '의뢰 접수는 준비 중이에요. 후원 여부는 의뢰 채택에 영향을 주지 않습니다.':
@@ -157,7 +157,7 @@ const extraTranslations = <String, Map<String, String>>{
   },
   'hi': {
     '작은 모험 길드': 'छोटे रोमांच का गिल्ड',
-    '길드주인': 'गिल्ड मालिक',
+    '길드주인': 'गिल्ड प्रमुख',
     '길드 메뉴': 'गिल्ड मेन्यू',
     '닫기': 'बंद करें',
     '돌아가기': 'वापस',
@@ -206,7 +206,7 @@ const extraTranslations = <String, Map<String, String>>{
     '그러니 퀘스트가 끝나면 양심껏 보고해 줘.\n실패해도 괜찮아. 내일이면 또 다른 의뢰가 찾아올 테니까.':
         'इसलिए मिशन खत्म होने पर ईमानदारी से बता देना।\nअसफल हुए तो भी कोई बात नहीं। कल एक नया मिशन आएगा।',
     '자, 그럼 오늘의 의뢰서를 받게!': 'चलो, अब आज का मिशन पर्चा लो!',
-    '길드주인의 이야기를 듣고 있어요…': 'गिल्ड मालिक की बात सुन रहे हैं…',
+    '길드주인의 이야기를 듣고 있어요…': 'गिल्ड प्रमुख की बात सुन रहे हैं…',
     '오늘의 의뢰가 도착했어요': 'आज का मिशन आ गया है',
     '양피지 열기': 'पर्चा खोलें',
     '봉인을 눌러 의뢰를 확인하세요': 'मिशन पढ़ने के लिए मुहर दबाएँ',
