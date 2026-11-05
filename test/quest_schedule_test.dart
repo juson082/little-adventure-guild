@@ -19,10 +19,13 @@ void main() {
     expect(timeUntilQuestExpiry(saved, start.add(const Duration(hours: 23))),
         const Duration(hours: 1));
   });
-  test('열지 않은 양피지는 날짜가 여러 번 바뀌어도 만료되지 않는다', () {
-    final saved = <String, dynamic>{'opened': false, 'date': '2025-01-01'};
-    expect(questHasExpired(saved, DateTime.utc(2026, 11, 5)), isFalse);
-    expect(timeUntilQuestExpiry(saved, DateTime.utc(2026, 11, 5)), isNull);
+  test('열지 않은 양피지는 기기 날짜가 바뀌면 만료된다', () {
+    final saved = <String, dynamic>{'opened': false, 'date': '2026-11-05'};
+    expect(questHasExpired(saved, DateTime(2026, 11, 5, 23, 59, 59)), isFalse);
+    expect(timeUntilQuestExpiry(saved, DateTime(2026, 11, 5, 23, 59, 59)),
+        const Duration(seconds: 1));
+    expect(questHasExpired(saved, DateTime(2026, 11, 6)), isTrue);
+    expect(timeUntilQuestExpiry(saved, DateTime(2026, 11, 6)), Duration.zero);
   });
   test('이전 버전의 시각 없는 기록은 자동으로 만료하지 않는다', () {
     final saved = <String, dynamic>{'opened': true, 'date': '2025-01-01'};

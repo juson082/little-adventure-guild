@@ -502,7 +502,7 @@ void main() {
     expect(saved['opened'], isFalse);
   });
 
-  testWidgets('열지 않은 오래된 의뢰와 24시간 미만 의뢰는 바뀌지 않는다', (tester) async {
+  testWidgets('열지 않은 오래된 의뢰는 바뀌고 열린 의뢰는 24시간 유지된다', (tester) async {
     final now = DateTime.now();
     final oldDate =
         '${now.subtract(const Duration(days: 2)).year}-${now.subtract(const Duration(days: 2)).month.toString().padLeft(2, '0')}-${now.subtract(const Duration(days: 2)).day.toString().padLeft(2, '0')}';
@@ -527,7 +527,11 @@ void main() {
       await tester.pumpAndSettle();
       final store = await SharedPreferences.getInstance();
       final saved = jsonDecode(store.getString('today')!) as Map;
-      expect(saved['quest'], 7);
+      if (opened) {
+        expect(saved['quest'], 7);
+      } else {
+        expect(saved['quest'], isNot(7));
+      }
       expect(saved['opened'], opened);
     }
   });

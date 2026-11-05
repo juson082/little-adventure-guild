@@ -94,7 +94,12 @@ List<int> eligibleQuestIndices(QuestEnvironment environment) => [
       for (var i = 0; i < hardQuests.length; i++) quests.length + i,
     ];
 
-int chooseDailyQuest(QuestEnvironment environment, Random random) {
+int chooseDailyQuest(QuestEnvironment environment, Random random,
+    {int? excludeIndex}) {
   final eligible = eligibleQuestIndices(environment);
+  // A scroll that was never opened must visibly change on the next day.
+  if (excludeIndex != null && eligible.length > 1) {
+    eligible.remove(excludeIndex);
+  }
   return eligible[random.nextInt(eligible.length)];
 }

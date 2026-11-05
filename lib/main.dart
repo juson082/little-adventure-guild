@@ -240,14 +240,18 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
         }
       }
       if (saved == null || questHasExpired(saved, DateTime.now())) {
+        final previousUnopened = saved != null && saved['opened'] != true
+            ? saved['quest'] as int?
+            : null;
         WeatherObservation? weather;
         if (store.getBool(weatherPreference) == true) {
           weather = await environmentService
               .currentWeather()
               .timeout(const Duration(seconds: 14), onTimeout: () => null);
         }
-        final index =
-            chooseDailyQuest(QuestEnvironment(weather: weather), Random());
+        final index = chooseDailyQuest(
+            QuestEnvironment(weather: weather), Random(),
+            excludeIndex: previousUnopened);
         saved = {
           'gold': saved?['gold'] ?? 0,
           'unlocked': saved?['unlocked'] ?? <String>[],
@@ -403,12 +407,13 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     }
     final openedAt = DateTime.now().toUtc().millisecondsSinceEpoch;
     setState(() => revealing = true);
+    await update('opened', openedAt: openedAt);
+    if (!mounted) return;
     await Future<void>.delayed(MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : const Duration(seconds: 3));
     if (!mounted) return;
-    await update('opened', openedAt: openedAt);
-    if (mounted) setState(() => revealing = false);
+    setState(() => revealing = false);
   }
 
   Future<void> completeQuest() async {
@@ -462,7 +467,10 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
 
   Future<void> update(String key, {int? openedAt}) async {
     if (busy || today == null) return;
-    if (questHasExpired(today, DateTime.now())) {
+    final checkedAt = key == 'opened' && openedAt != null
+        ? DateTime.fromMillisecondsSinceEpoch(openedAt)
+        : DateTime.now();
+    if (questHasExpired(today, checkedAt)) {
       await load();
       return;
     }
