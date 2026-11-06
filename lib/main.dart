@@ -107,7 +107,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   String? error;
   bool busy = false;
   bool loading = false;
-  static const weatherPreference = 'weather_location_enabled';
+  static const weatherPreference = 'weather_location_enabled_met_no_v1';
   static const environmentService = EnvironmentService();
   bool rewarding = false;
   Offset rewardStart = Offset.zero;
@@ -729,7 +729,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
 
   Widget weatherExplanation() =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(t('주변 날씨를 사용하면 그날에 어울리는 의뢰를 고를 수 있어요. 허용하면 대략적인 위치가 날씨 서비스 Open-Meteo에 전송됩니다. 앱은 위치를 저장하지 않습니다.'),
+        Text(t('주변 날씨를 사용하면 그날에 어울리는 의뢰를 고를 수 있어요. 허용하면 대략적인 위치가 날씨 서비스 MET Norway에 전송됩니다. 앱은 위치를 저장하지 않습니다.'),
             style: const TextStyle(
                 color: ink,
                 fontFamily: 'sans-serif',
@@ -740,11 +740,11 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
             style: const TextStyle(
                 color: brown, fontFamily: 'sans-serif', fontSize: 12)),
         const SizedBox(height: 8),
-        Text(t('날씨 자료: Open-Meteo · CC BY 4.0'),
+        Text(t('날씨 자료: MET Norway · CC BY 4.0 · 가공됨'),
             style: const TextStyle(
                 color: brown, fontFamily: 'sans-serif', fontSize: 12)),
         const SelectableText(
-            'https://open-meteo.com/  ·  https://creativecommons.org/licenses/by/4.0/',
+            'https://www.met.no/  ·  https://creativecommons.org/licenses/by/4.0/',
             style: TextStyle(
                 color: brown, fontFamily: 'sans-serif', fontSize: 10)),
       ]);

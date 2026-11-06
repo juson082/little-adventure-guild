@@ -12,7 +12,7 @@ class WeatherObservation {
   final int code;
   final double cloudCover;
   final double windKmh;
-  final bool recentRain;
+  final bool? recentRain;
 
   bool get raining => const {
         51,
@@ -83,7 +83,9 @@ bool questFitsEnvironment(String title, QuestEnvironment e) {
   if (cloudQuests.contains(title)) return w.visibleClouds;
   if (windyQuests.contains(title)) return w.windy;
   if (rainQuests.contains(title)) return w.raining;
-  if (afterRainQuests.contains(title)) return !w.raining && w.recentRain;
+  if (afterRainQuests.contains(title)) {
+    return !w.raining && (w.recentRain ?? true);
+  }
   return true;
 }
 

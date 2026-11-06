@@ -1,16 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'quest_environment.dart';
 
-/// Reads an approximate foreground location only after the user opts in.
-/// Coordinates are rounded before a single weather request and never stored.
+/// Reads approximate location only after consent; never stores coordinates.
 class EnvironmentService {
   const EnvironmentService();
   static const _location = MethodChannel('hvildir/approximate_location');
 
-  /// Called only after the user explicitly enables location-based weather.
   Future<bool> requestLocationPermission() async {
     if (!Platform.isAndroid) return false;
     try {
@@ -36,23 +37,45 @@ class EnvironmentService {
           lon.abs() > 180) {
         return null;
       }
-      final uri = Uri.https('api.open-meteo.com', '/v1/forecast', {
-        'latitude': lat.toStringAsFixed(1),
-        'longitude': lon.toStringAsFixed(1),
-        'current': 'weather_code,cloud_cover,wind_speed_10m',
-        'hourly': 'precipitation',
-        'past_hours': '6',
-        'forecast_hours': '1',
-        'timezone': 'auto',
+      // Suppress all repeat requests until expiry without storing coordinates.
+      final prefs = await SharedPreferences.getInstance();
+      final retryAfter = prefs.getInt('met_weather_retry_after_ms') ?? 0;
+      if (DateTime.now().millisecondsSinceEpoch < retryAfter) return null;
+      final uri =
+          Uri.https('api.met.no', '/weatherapi/locationforecast/2.0/compact', {
+        'lat': lat.toStringAsFixed(1),
+        'lon': lon.toStringAsFixed(1),
       });
       final client = HttpClient()
         ..connectionTimeout = const Duration(seconds: 4);
       try {
         final request =
             await client.getUrl(uri).timeout(const Duration(seconds: 5));
+        request.headers.set(
+            HttpHeaders.userAgentHeader, 'Hvildir/1.0 pooiuytt08@naver.com');
         final response =
             await request.close().timeout(const Duration(seconds: 5));
+        if (response.statusCode == HttpStatus.tooManyRequests) {
+          await prefs.setInt(
+              'met_weather_retry_after_ms',
+              DateTime.now()
+                  .add(const Duration(minutes: 30))
+                  .millisecondsSinceEpoch);
+          return null;
+        }
         if (response.statusCode != HttpStatus.ok) return null;
+        final expires = response.headers.value(HttpHeaders.expiresHeader);
+        var expiry = DateTime.now().add(const Duration(hours: 3));
+        if (expires != null) {
+          try {
+            final headerExpiry = HttpDate.parse(expires);
+            if (headerExpiry.isAfter(expiry)) expiry = headerExpiry;
+          } on FormatException {
+            // Keep the conservative interval if the header is malformed.
+          }
+        }
+        await prefs.setInt(
+            'met_weather_retry_after_ms', expiry.millisecondsSinceEpoch);
         final data = await response
             .transform(utf8.decoder)
             .join()
@@ -68,56 +91,77 @@ class EnvironmentService {
   }
 }
 
+/// Locationforecast returns model forecasts, not observed recent rainfall.
 WeatherObservation? parseWeather(Object? data, DateTime now) {
   try {
     if (data is! Map) return null;
-    final current = data['current'];
-    if (current is! Map) return null;
-    final code = current['weather_code'];
-    final clouds = current['cloud_cover'];
-    final wind = current['wind_speed_10m'];
-    if (code is! num ||
-        clouds is! num ||
-        wind is! num ||
-        clouds < 0 ||
-        clouds > 100 ||
-        wind < 0) {
-      return null;
-    }
-    final hourly = data['hourly'];
-    var recentRain = false;
-    if (hourly is Map &&
-        hourly['time'] is List &&
-        hourly['precipitation'] is List) {
-      final times = hourly['time'] as List;
-      final amounts = hourly['precipitation'] as List;
-      for (var i = 0; i < times.length && i < amounts.length; i++) {
-        DateTime? time;
-        final offset = data['utc_offset_seconds'];
-        if (times[i] is String) {
-          final raw = times[i] as String;
-          if (offset is num) {
-            final localAsUtc = DateTime.tryParse('${raw}Z');
-            time = localAsUtc?.subtract(Duration(seconds: offset.toInt()));
-          } else {
-            time = DateTime.tryParse(raw);
-          }
+    final properties = data['properties'];
+    if (properties is! Map || properties['timeseries'] is! List) return null;
+    Map? best;
+    DateTime? bestTime;
+    Map? nextItem;
+    DateTime? nextTime;
+    for (final item in properties['timeseries'] as List) {
+      if (item is! Map || item['time'] is! String || item['data'] is! Map) {
+        continue;
+      }
+      final time = DateTime.tryParse(item['time'] as String);
+      if (time == null) continue;
+      if (time.isAfter(now)) {
+        if (nextTime == null || time.isBefore(nextTime)) {
+          nextItem = item;
+          nextTime = time;
         }
-        final value = amounts[i];
-        if (time != null &&
-            value is num &&
-            value > 0.1 &&
-            !time.isAfter(now) &&
-            now.difference(time) <= const Duration(hours: 6)) {
-          recentRain = true;
-        }
+        continue;
+      }
+      if (bestTime == null || time.isAfter(bestTime)) {
+        best = item;
+        bestTime = time;
       }
     }
+    if (best == null &&
+        nextTime != null &&
+        nextTime.difference(now) <= const Duration(hours: 1)) {
+      best = nextItem;
+      bestTime = nextTime;
+    }
+    if (best == null ||
+        bestTime == null ||
+        now.difference(bestTime) > const Duration(hours: 3)) {
+      return null;
+    }
+    final forecast = best['data'] as Map;
+    final instant = forecast['instant'];
+    if (instant is! Map || instant['details'] is! Map) return null;
+    final clouds = (instant['details'] as Map)['cloud_area_fraction'];
+    final wind = (instant['details'] as Map)['wind_speed'];
+    final next = forecast['next_1_hours'];
+    if (clouds is! num ||
+        wind is! num ||
+        !clouds.isFinite ||
+        !wind.isFinite ||
+        clouds < 0 ||
+        clouds > 100 ||
+        wind < 0 ||
+        next is! Map ||
+        next['summary'] is! Map) {
+      return null;
+    }
+    final symbol = (next['summary'] as Map)['symbol_code'];
+    if (symbol is! String || symbol.isEmpty) return null;
+    final rainy = symbol.contains('rain');
     return WeatherObservation(
-        code: code.toInt(),
-        cloudCover: clouds.toDouble(),
-        windKmh: wind.toDouble(),
-        recentRain: recentRain);
+      code: rainy
+          ? 61
+          : (symbol.startsWith('clearsky') ||
+                  symbol.startsWith('fair') ||
+                  symbol.startsWith('partlycloudy')
+              ? 1
+              : 3),
+      cloudCover: clouds.toDouble(),
+      windKmh: wind.toDouble() * 3.6,
+      recentRain: null,
+    );
   } on Object {
     return null;
   }

@@ -65,28 +65,33 @@ void main() {
       }
     }
   });
-  test('날씨 응답의 현지 시각을 UTC 오프셋으로 해석한다', () {
+  test('MET 예보의 시간과 날씨를 해석한다', () {
     final now = DateTime.utc(2026, 7, 1, 11); // 20:00 in Tokyo.
     final parsed = parseWeather({
-      'utc_offset_seconds': 32400,
-      'current': {'weather_code': 3, 'cloud_cover': 85, 'wind_speed_10m': 4},
-      'hourly': {
-        'time': ['2026-07-01T12:00', '2026-07-01T19:00', '2026-07-01T21:00'],
-        'precipitation': [0.8, 0.2, 2.0]
-      },
+      'properties': {
+        'timeseries': [
+          {
+            'time': '2026-07-01T10:00:00Z',
+            'data': {
+              'instant': {
+                'details': {'cloud_area_fraction': 85, 'wind_speed': 4}
+              },
+              'next_1_hours': {
+                'summary': {'symbol_code': 'rain'}
+              }
+            }
+          },
+          {'time': '2026-07-01T12:00:00Z', 'data': {}}
+        ]
+      }
     }, now);
     expect(parsed, isNotNull);
-    expect(parsed!.recentRain, isTrue);
-    expect(parsed.raining, isFalse);
-    final futureOnly = parseWeather({
-      'utc_offset_seconds': 32400,
-      'current': {'weather_code': 3, 'cloud_cover': 85, 'wind_speed_10m': 4},
-      'hourly': {
-        'time': ['2026-07-01T21:00'],
-        'precipitation': [2.0]
-      },
-    }, now);
-    expect(futureOnly!.recentRain, isFalse);
+    expect(parsed!.recentRain, isNull);
+    expect(parsed.raining, isTrue);
+    expect(parsed.windKmh, closeTo(14.4, 0.001));
+    expect(
+        questFitsEnvironment('비 온 뒤의 풍경 보기', QuestEnvironment(weather: parsed)),
+        isFalse);
   });
   test('불완전한 날씨 응답은 날씨 미상으로 처리한다', () {
     expect(
