@@ -123,6 +123,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   bool tutorialPaused = false;
   bool greetingFinished = false;
   bool revealing = false;
+  bool documentClosed = false;
   bool showGreeting = false;
   bool? tutorialComplete;
   String? languageOverride;
@@ -405,8 +406,15 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
       await load();
       return;
     }
+    if (today!['opened'] == true) {
+      setState(() => documentClosed = false);
+      return;
+    }
     final openedAt = DateTime.now().toUtc().millisecondsSinceEpoch;
-    setState(() => revealing = true);
+    setState(() {
+      revealing = true;
+      documentClosed = false;
+    });
     await update('opened', openedAt: openedAt);
     if (!mounted) return;
     await Future<void>.delayed(MediaQuery.disableAnimationsOf(context)
@@ -906,7 +914,8 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: PixelPanel(
+        child: SingleChildScrollView(
+            child: PixelPanel(
           child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -957,7 +966,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                 GuildButton(
                     label: t('돌아가기'), onPressed: () => Navigator.pop(context)),
               ]),
-        ),
+        )),
       ),
     );
   }
@@ -983,6 +992,12 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor: const Color(0xff291c15),
       body: Stack(key: screenKey, children: [
+        Positioned.fill(
+            child: SafeArea(
+                child: Center(
+                    child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 520),
+                        child: const GuildRoomBackground())))),
         SafeArea(
             child: Center(
                 child: ConstrainedBox(
@@ -1012,6 +1027,34 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                       ))),
                   const Positioned.fill(
                       child: IgnorePointer(child: GuildLanternGlow())),
+                  if (tutorialPaused)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: Align(
+                          alignment: const Alignment(.25, -.48),
+                          child: TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0, end: 1),
+                            duration: const Duration(milliseconds: 280),
+                            curve: Curves.easeOutBack,
+                            builder: (context, value, child) =>
+                                Transform.scale(scale: value, child: child),
+                            child: const Text('?',
+                                style: TextStyle(
+                                    color: Color(0xffffdf86),
+                                    fontSize: 38,
+                                    fontWeight: FontWeight.w900,
+                                    shadows: [
+                                      Shadow(
+                                          color: Color(0xff4a2918),
+                                          offset: Offset(2, 2)),
+                                      Shadow(
+                                          color: Color(0xff4a2918),
+                                          offset: Offset(-2, -2)),
+                                    ])),
+                          ),
+                        ),
+                      ),
+                    ),
                   Positioned.fill(
                       child: DecoratedBox(
                           decoration: BoxDecoration(
@@ -1021,7 +1064,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                   colors: [
                         Colors.black.withValues(alpha: .26),
                         Colors.transparent,
-                        const Color(0xff291c15).withValues(alpha: .25)
+                        Colors.transparent
                       ],
                                   stops: const [
                         0,
@@ -1034,7 +1077,8 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                       right: 12,
                       child: Row(children: [
                         const Spacer(),
-                        Tooltip(
+                        Flexible(
+                            child: Tooltip(
                           message: t('보유 골드'),
                           child: DecoratedBox(
                             decoration: headerWoodDecoration,
@@ -1062,14 +1106,20 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                             painter:
                                                 HeaderIconPainter(coin: true))),
                                     const SizedBox(width: 7),
-                                    Text("${today?['gold'] ?? 0} G",
-                                        style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w800)),
+                                    Flexible(
+                                        child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                                "${today?['gold'] ?? 0} G",
+                                                maxLines: 1,
+                                                style: const TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight:
+                                                        FontWeight.w800)))),
                                   ]),
                             ),
                           ),
-                        ),
+                        )),
                         const SizedBox(width: 8),
                         Tooltip(
                           message: t('길드 메뉴'),
@@ -1098,13 +1148,25 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                             AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 240),
                                 transitionBuilder: (child, animation) =>
-                                    ClipRect(
-                                        child: SizeTransition(
-                                            sizeFactor: animation,
-                                            alignment: Alignment.topCenter,
-                                            child: FadeTransition(
-                                                opacity: animation,
-                                                child: child))),
+                                    AnimatedBuilder(
+                                      animation: animation,
+                                      child: child,
+                                      builder: (context, child) {
+                                        final step =
+                                            (animation.value * 8).ceil() / 8;
+                                        return ClipRect(
+                                          child: Align(
+                                            alignment: Alignment.center,
+                                            heightFactor: step.clamp(0.0, 1.0),
+                                            child: Opacity(
+                                              opacity:
+                                                  animation.value > .7 ? 1 : 0,
+                                              child: child,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
                                 child: !tutorialPaused &&
                                         (tutorialComplete == false ||
                                             showGreeting)
@@ -1149,7 +1211,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                   label:
                                       tutorialStep == guildTutorial.length - 1
                                           ? t('모험 시작하기')
-                                          : t('다음 이야기'),
+                                          : t('다음'),
                                   onPressed: busy ? null : advanceTutorial),
                             ] else if (error != null) ...[
                               Text(error!,
@@ -1163,7 +1225,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                       color: Color(0xffe5c793)))
                             else if (!greetingFinished)
                               const SizedBox.shrink()
-                            else if (!opened) ...[
+                            else if (!opened || documentClosed) ...[
                               Center(
                                 child: Semantics(
                                   button: true,
@@ -1211,43 +1273,76 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                   ),
                                 ),
                               ),
-                            ] else
-                              TweenAnimationBuilder<double>(
-                                  tween: Tween(begin: .85, end: 1),
-                                  duration: const Duration(milliseconds: 360),
-                                  curve: Curves.easeOut,
-                                  builder: (context, value, child) => ClipRect(
-                                      child: Align(
-                                          heightFactor: value,
-                                          alignment: Alignment.topCenter,
-                                          child: child)),
-                                  child: QuestDocument(
-                                    title: t(item!.$1),
-                                    description: t(item.$2),
-                                    hard: isHard,
-                                    completed: completed,
-                                    failed: failed,
-                                    heading: t('오늘의 사이드퀘스트'),
-                                    reward: isHard
-                                        ? t('완료 보상 · 10 G')
-                                            .replaceAll('10', '30')
-                                        : t('완료 보상 · 10 G'),
-                                    completeLabel: t('퀘스트 완료'),
-                                    failLabel: t('퀘스트 실패'),
-                                    completeKey: completeKey,
-                                    onComplete: busy || rewarding || resolved
-                                        ? null
-                                        : completeQuest,
-                                    onFail: busy || rewarding || resolved
-                                        ? null
-                                        : () => update('failed'),
-                                  )),
+                            ],
                             const SizedBox(height: 24),
                             const SizedBox(height: 20),
                           ]),
                     )),
               ]),
         ))),
+        if (opened &&
+            !documentClosed &&
+            !revealing &&
+            greetingFinished &&
+            item != null)
+          Positioned.fill(
+            child: SafeArea(
+              child: LayoutBuilder(builder: (context, constraints) {
+                final width = min(
+                    520.0,
+                    min(constraints.maxWidth - 16,
+                        (constraints.maxHeight - 16) * 2 / 3));
+                return Center(
+                  child: SizedBox(
+                    width: max(0, width),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: 1),
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 500),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, child) => IgnorePointer(
+                        ignoring: value < .95,
+                        child: Opacity(
+                          opacity: value,
+                          child: Transform.translate(
+                            offset: Offset(0, (1 - value) * 16),
+                            child: Transform.scale(
+                              scale: .94 + .06 * value,
+                              child: child,
+                            ),
+                          ),
+                        ),
+                      ),
+                      child: QuestDocument(
+                        title: t(item!.$1),
+                        description: t(item.$2),
+                        hard: isHard,
+                        completed: completed,
+                        failed: failed,
+                        heading: t('오늘의 사이드퀘스트'),
+                        reward: isHard
+                            ? t('완료 보상 · 10 G').replaceAll('10', '30')
+                            : t('완료 보상 · 10 G'),
+                        completeLabel: t('퀘스트 완료'),
+                        failLabel: t('퀘스트 실패'),
+                        completeKey: completeKey,
+                        onComplete: busy || rewarding || resolved
+                            ? null
+                            : completeQuest,
+                        onFail: busy || rewarding || resolved
+                            ? null
+                            : () => update('failed'),
+                        onClose: rewarding
+                            ? null
+                            : () => setState(() => documentClosed = true),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
         if (rewarding && rewardEnd != Offset.zero)
           Positioned.fill(
               child: IgnorePointer(
@@ -1258,6 +1353,46 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
       ]),
     );
   }
+}
+
+class GuildRoomBackground extends StatelessWidget {
+  const GuildRoomBackground({super.key});
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final roomHeight = width * 1312 / 1199;
+          final floorHeight = width * 383 / 1199;
+          final count = floorHeight > 0
+              ? max(0,
+                  ((constraints.maxHeight - roomHeight) / floorHeight).ceil())
+              : 0;
+          return ClipRect(
+            child: Stack(fit: StackFit.expand, children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Image.asset('assets/guild_interior_v4.png',
+                    fit: BoxFit.fitWidth, filterQuality: FilterQuality.none),
+              ),
+              for (var i = 0; i < count; i++)
+                Positioned(
+                  top: roomHeight + i * floorHeight,
+                  left: 0,
+                  right: 0,
+                  height: floorHeight + .5,
+                  child: Transform.flip(
+                    flipY: i.isEven,
+                    child: Image.asset('assets/guild_floor_extension.png',
+                        fit: BoxFit.fill, filterQuality: FilterQuality.none),
+                  ),
+                ),
+            ]),
+          );
+        },
+      );
 }
 
 class GuildDecorationClipper extends CustomClipper<Rect> {
@@ -1402,10 +1537,11 @@ class QuestDocument extends StatelessWidget {
       required this.failLabel,
       this.completeKey,
       this.onComplete,
-      this.onFail});
+      this.onFail,
+      this.onClose});
   final String title, description, heading, reward, completeLabel, failLabel;
   final bool hard, completed, failed;
-  final VoidCallback? onComplete, onFail;
+  final VoidCallback? onComplete, onFail, onClose;
   final GlobalKey? completeKey;
 
   @override
@@ -1451,51 +1587,69 @@ class QuestDocument extends StatelessWidget {
                     fit: BoxFit.fill,
                     filterQuality: FilterQuality.none)),
             Positioned(
+              right: w * .08,
+              top: h * .07,
+              child: IconButton(
+                key: const ValueKey('closeQuest'),
+                onPressed: onClose,
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                style: IconButton.styleFrom(
+                  backgroundColor: const Color(0xff57341f),
+                  foregroundColor: const Color(0xffffedc7),
+                  shape: const RoundedRectangleBorder(),
+                  minimumSize: const Size(44, 44),
+                ),
+                icon: const Icon(Icons.close, size: 24),
+              ),
+            ),
+            Positioned(
                 left: w * .15,
                 right: w * .15,
                 top: h * (hard ? .23 : .12),
                 bottom: h * (hard ? .25 : .35),
                 child: LayoutBuilder(builder: (context, contentConstraints) {
-                  return SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                          minHeight: contentConstraints.maxHeight),
-                      child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (!hard) ...[
-                              Text(heading,
+                  return Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: SizedBox(
+                        width: contentConstraints.maxWidth,
+                        child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (!hard) ...[
+                                Text(heading,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                        color: Color(0xff926438),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 12)
+                              ],
+                              Text(title,
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
-                                      color: Color(0xff926438),
-                                      fontSize: 11,
+                                      color: ink,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                      height: 1.3)),
+                              const SizedBox(height: 10),
+                              Text(description,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      color: Color(0xff62452b),
+                                      fontFamily: 'sans-serif',
+                                      fontSize: 14,
+                                      height: 1.5)),
+                              const SizedBox(height: 12),
+                              Text(reward,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      color: Color(0xff8b5b21),
+                                      fontSize: 12,
                                       fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 12)
-                            ],
-                            Text(title,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                    color: ink,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                    height: 1.3)),
-                            const SizedBox(height: 10),
-                            Text(description,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                    color: Color(0xff62452b),
-                                    fontFamily: 'sans-serif',
-                                    fontSize: 14,
-                                    height: 1.5)),
-                            const SizedBox(height: 12),
-                            Text(reward,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                    color: Color(0xff8b5b21),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold)),
-                          ]),
+                            ]),
+                      ),
                     ),
                   );
                 })),
@@ -1564,17 +1718,17 @@ class PixelPanel extends StatelessWidget {
                 image: DecorationImage(
                     image: ResizeImage(AssetImage('assets/dialogue_frame.png'),
                         width: 355, height: 177),
-                    centerSlice: Rect.fromLTRB(12, 8, 343, 169),
+                    centerSlice: Rect.fromLTRB(20, 20, 335, 157),
                     fit: BoxFit.fill,
                     filterQuality: FilterQuality.none)),
         child: CustomPaint(
           foregroundPainter: ornate ? const OrnateFramePainter() : null,
           child: Padding(
               padding: EdgeInsets.fromLTRB(
-                  parchment ? 28 : 22,
-                  parchment ? 40 : 19,
-                  parchment ? 28 : 22,
-                  parchment ? 26 : 19),
+                  parchment ? 28 : 24,
+                  parchment ? 40 : 25,
+                  parchment ? 28 : 24,
+                  parchment ? 26 : 25),
               child: child),
         ),
       );
@@ -1651,12 +1805,19 @@ class _GuildButtonState extends State<GuildButton> {
                       foregroundColor: const Color(0xffffefd1),
                       disabledForegroundColor: const Color(0xffffefd1),
                       shape: const RoundedRectangleBorder(),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 28, vertical: 18)),
-                  child: Text(widget.label,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w700))),
+                      minimumSize: const Size(0, 72),
+                      padding: const EdgeInsets.symmetric(horizontal: 28)),
+                  child: SizedBox(
+                      height: 32,
+                      child: Center(
+                          child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(widget.label,
+                                  maxLines: 1,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700)))))),
             ),
           )));
 }

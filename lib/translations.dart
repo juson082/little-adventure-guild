@@ -53,6 +53,7 @@ const translations = <String, Map<String, String>>{
         'Suggestions are coming soon. Supporting the guild does not affect selection.',
     '모험 시작하기': 'Begin the adventure',
     '다음 이야기': 'Continue',
+    '다음': 'Next',
     '어서 와!\n요즘 리얼 월드에서 메인 퀘스트를 하느라 바쁘지? 고생이 많구먼.':
         'Welcome!\nBusy with your main quest in the real world these days? You’ve been working hard.',
     '걱정 마. 우리 길드에서는 메인 퀘스트는 취급하지 않아.\n여기선 하루에 하나씩, 작은 서브퀘스트를 줄 거야.':
@@ -148,6 +149,7 @@ const translations = <String, Map<String, String>>{
         '依頼の受付は準備中です。支援の有無は採用に影響しません。',
     '모험 시작하기': '冒険を始める',
     '다음 이야기': '次の話へ',
+    '다음': '次へ',
     '어서 와!\n요즘 리얼 월드에서 메인 퀘스트를 하느라 바쁘지? 고생이 많구먼.':
         'ようこそ！\n最近はリアルワールドでメインクエストに忙しいんじゃろう？ お疲れさん。',
     '걱정 마. 우리 길드에서는 메인 퀘스트는 취급하지 않아.\n여기선 하루에 하나씩, 작은 서브퀘스트를 줄 거야.':

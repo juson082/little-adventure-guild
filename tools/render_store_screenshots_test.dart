@@ -69,6 +69,14 @@ void main() {
       ]) {
         await precacheImage(AssetImage(asset), key.currentContext!);
       }
+      await precacheImage(
+          const ResizeImage(AssetImage('assets/dialogue_frame.png'),
+              width: 355, height: 177),
+          key.currentContext!);
+      await precacheImage(
+          const ResizeImage(AssetImage('assets/wood_button.png'),
+              width: 432, height: 144),
+          key.currentContext!);
     });
     await tester.pump(const Duration(seconds: 2));
     await tester.pump();
@@ -85,7 +93,7 @@ void main() {
     await tester.runAsync(() async {
       final image = await boundary.toImage(pixelRatio: 3);
       final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-      await File('store-assets/$name')
+      await File(screen == 'decorate' ? 'preview/$name' : 'store-assets/$name')
           .writeAsBytes(bytes!.buffer.asUint8List());
       image.dispose();
     });
@@ -95,8 +103,16 @@ void main() {
       (tester) async => render(tester, 'screenshot-01.png', false));
   testWidgets('render quest for store',
       (tester) async => render(tester, 'screenshot-02.png', true));
-  testWidgets('render guild menu for store',
-      (tester) async => render(tester, 'screenshot-03.png', false, screen: 'menu'));
-  testWidgets('render hard quest for store',
-      (tester) async => render(tester, 'screenshot-04.png', true, screen: 'hard'));
+  testWidgets(
+      'render guild menu for store',
+      (tester) async =>
+          render(tester, 'screenshot-03.png', false, screen: 'menu'));
+  testWidgets(
+      'render hard quest for store',
+      (tester) async =>
+          render(tester, 'screenshot-04.png', true, screen: 'hard'));
+  testWidgets(
+      'render decoration layout preview',
+      (tester) async =>
+          render(tester, 'decoration-fixed.png', false, screen: 'decorate'));
 }

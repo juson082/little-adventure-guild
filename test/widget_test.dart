@@ -36,6 +36,10 @@ void main() {
     await tester.pumpAndSettle();
     final tappedAt = DateTime.now().toUtc().millisecondsSinceEpoch;
     await tester.tap(find.byKey(const ValueKey('openQuest')));
+    await tester.pump();
+    expect(find.byType(QuestDocument), findsNothing);
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.byType(QuestDocument), findsNothing);
     await tester.pumpAndSettle();
     final opened =
         jsonDecode((await SharedPreferences.getInstance()).getString('today')!)
@@ -43,6 +47,16 @@ void main() {
     expect(opened['opened_at_ms'], greaterThanOrEqualTo(tappedAt));
     expect(opened['opened_at_ms'],
         lessThanOrEqualTo(DateTime.now().toUtc().millisecondsSinceEpoch));
+    await tester.tap(find.byKey(const ValueKey('closeQuest')));
+    await tester.pump();
+    expect(find.byType(QuestDocument), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('openQuest')));
+    await tester.pump();
+    expect(find.byType(QuestDocument), findsOneWidget);
+    expect(
+        jsonDecode((await SharedPreferences.getInstance()).getString('today')!)[
+            'opened_at_ms'],
+        opened['opened_at_ms']);
     expect(find.text('퀘스트 완료'), findsOneWidget);
     await tester.ensureVisible(find.text('퀘스트 완료'));
     await tester.pumpAndSettle();
@@ -97,7 +111,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('퀘스트 완료'));
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, 900));
+    await tester.tap(find.byKey(const ValueKey('closeQuest')));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('길드 메뉴'));
     await tester.pumpAndSettle();
@@ -107,10 +121,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('별의 수호검 · 치우기'), findsOneWidget);
     expect(find.text('보유 골드  0 G'), findsOneWidget);
+    await tester.ensureVisible(find.text('돌아가기'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('돌아가기'));
     await tester.pumpAndSettle();
     await tester
         .pumpWidget(const GuildApp(key: ValueKey('restart decorations')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('closeQuest')));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('길드 메뉴'));
     await tester.pumpAndSettle();
@@ -151,12 +169,12 @@ void main() {
     expect(find.textContaining('리얼 월드에서 메인 퀘스트'), findsOneWidget);
     expect(find.byKey(const ValueKey('openQuest')), findsNothing);
     for (var i = 0; i < guildTutorial.length - 1; i++) {
-      await tester.ensureVisible(find.text('다음 이야기'));
+      await tester.ensureVisible(find.text('다음'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('다음 이야기'));
+      await tester.tap(find.text('다음'));
       if (i == tutorialPauseAfterStep) {
         await tester.pump();
-        expect(find.text('다음 이야기'), findsNothing);
+        expect(find.text('다음'), findsNothing);
         await tester.pump(const Duration(seconds: 3));
       }
       await tester.pumpAndSettle();
@@ -172,7 +190,7 @@ void main() {
     expect(find.byKey(const ValueKey('openQuest')), findsOneWidget);
     await tester.pumpWidget(const GuildApp(key: ValueKey('tutorial restart')));
     await tester.pumpAndSettle();
-    expect(find.text('다음 이야기'), findsNothing);
+    expect(find.text('다음'), findsNothing);
     await tester.pump(const Duration(seconds: 12));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();

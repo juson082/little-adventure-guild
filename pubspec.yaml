@@ -27,6 +27,7 @@ flutter:
   assets:
     - assets/privacy_policy.txt
     - assets/guild_interior_v4.png
+    - assets/guild_floor_extension.png
     - assets/dialogue_frame.png
     - assets/wood_button.png
     - assets/sealed_scroll_v2.png
