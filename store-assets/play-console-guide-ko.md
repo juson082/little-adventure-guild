@@ -9,7 +9,7 @@
 - 앱 또는 게임: 앱. 카테고리: 라이프스타일 권장. 이 구분과 타깃 연령은 실제 배포 대상에 따라 결정한다.
 - 무료 또는 유료: 무료. 광고 포함 여부: 아니요. 앱 내 구매: 현재 없음. 회원가입: 없음.
 - 짧은 설명과 상세 설명: `store-listing-draft.md` 참조. 지원 이메일: `juson082@gmail.com`.
-- 앱 아이콘: `icon-512.png` (512×512). 그래픽 이미지: `feature-graphic-1024x500.png`. 휴대전화 이미지: `screenshot-01.png`, `screenshot-02.png`.
+- 앱 아이콘: `icon-512.png` (512×512). 그래픽 이미지: `feature-graphic-1024x500.png`. 휴대전화 이미지: `screenshot-01.png`, `screenshot-02.png`, `screenshot-03.png`, `screenshot-04.png`.
 - 개인정보처리방침: https://gist.github.com/juson082/f40a5f838152e65853fdf8850fcf9b4d
 - 앱 액세스: 로그인이나 별도 인증 없이 모든 기능에 접근 가능. 위치는 선택 사항이다.
 - 패키지 ID: `com.questapp.littleadventure.little_adventure_guild`. 처음 Play에 등록하면 이후 바꿀 수 없다. 버전 코드: 1.

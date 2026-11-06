@@ -8,10 +8,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:little_adventure_guild/main.dart';
+import 'package:little_adventure_guild/guild_content.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  Future<void> render(WidgetTester tester, String name, bool opened) async {
+  Future<void> render(WidgetTester tester, String name, bool opened,
+      {String? screen}) async {
     final now = DateTime.now();
     final date =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -23,13 +25,13 @@ void main() {
       'last_greeting_date': date,
       'today': jsonEncode({
         'date': date,
-        'quest': 0,
+        'quest': screen == 'hard' ? quests.length : 0,
         'catalogVersion': 1,
         'opened': opened,
         if (opened) 'opened_at_ms': now.toUtc().millisecondsSinceEpoch,
         'completed': false,
         'failed': false,
-        'gold': 0,
+        'gold': screen == 'decorate' ? 150 : 0,
       }),
     });
     tester.view.physicalSize = const Size(1080, 1920);
@@ -70,6 +72,14 @@ void main() {
     });
     await tester.pump(const Duration(seconds: 2));
     await tester.pump();
+    if (screen == 'menu' || screen == 'decorate') {
+      await tester.tap(find.byTooltip('Guild menu'));
+      await tester.pumpAndSettle();
+      if (screen == 'decorate') {
+        await tester.tap(find.text('Decorate the guild'));
+        await tester.pumpAndSettle();
+      }
+    }
     final boundary =
         key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
     await tester.runAsync(() async {
@@ -85,4 +95,8 @@ void main() {
       (tester) async => render(tester, 'screenshot-01.png', false));
   testWidgets('render quest for store',
       (tester) async => render(tester, 'screenshot-02.png', true));
+  testWidgets('render guild menu for store',
+      (tester) async => render(tester, 'screenshot-03.png', false, screen: 'menu'));
+  testWidgets('render hard quest for store',
+      (tester) async => render(tester, 'screenshot-04.png', true, screen: 'hard'));
 }
