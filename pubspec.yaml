@@ -25,6 +25,7 @@ flutter:
       fonts:
         - asset: assets/fonts/Galmuri11.ttf
   assets:
+    - assets/privacy_policy.txt
     - assets/guild_interior_v4.png
     - assets/dialogue_frame.png
     - assets/wood_button.png

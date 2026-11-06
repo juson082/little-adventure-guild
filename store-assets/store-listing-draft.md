@@ -1,13 +1,21 @@
-# Play 스토어 임시 문안
+# Google Play listing
 
-앱 이름: Hvildir
-부제: Side Quest for Your Life
-짧은 설명: 매일 하나의 작은 모험으로 평범한 하루를 특별하게.
+App name: Hvildir
 
-상세 설명:
-바쁜 하루 속에 잠시 잊고 있던 작은 즐거움을 찾아보세요.
-길드주인이 건네는 양피지를 열면 오늘의 작은 사이드퀘스트가 기다립니다.
+Subtitle (in the description): Side Quest for Your Life
 
-하루에 하나, 마음이 가는 대로 경험해 보세요. 사진이나 위치 인증은 필요하지 않고, 완료하지 않아도 괜찮습니다. 가입과 광고 없이 사용할 수 있습니다.
+Short description: Find one small side quest for your day.
 
-※ 임시 문안입니다. 실제 퀘스트 및 기능을 확인한 뒤 사용하세요. 부제는 스토어 앱 이름과 별개로 활용합니다.
+Full description:
+
+Step into a quiet little guild and discover a small adventure for your everyday life.
+
+Open a sealed scroll to reveal a side quest. Look up at the night sky, try something new, or share a kind word. Report the result yourself: no photos or verification required.
+
+Complete quests to earn gold and decorate the guild with the items you choose. Some quests offer a greater challenge and a bigger reward.
+
+Weather-aware selection is optional. Without it, quests are selected without using weather information. No account is required.
+
+Side Quest for Your Life.
+
+Contact: juson082@gmail.com

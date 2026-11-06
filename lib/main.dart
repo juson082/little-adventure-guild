@@ -572,6 +572,10 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                   for (final entry in [
                     ('settings', t('설정')),
                     ('licenses', t('오픈소스 라이선스')),
+                    (
+                      'privacy',
+                      language == 'ko' ? '개인정보처리방침' : 'Privacy policy'
+                    ),
                     ('decorate', t('길드 꾸미기')),
                     ('support', t('길드 지원하기')),
                     ('suggest', t('의뢰 제안하기')),
@@ -585,6 +589,8 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                           } else if (entry.$1 == 'licenses') {
                             showLicensePage(
                                 context: context, applicationName: 'Hvildir');
+                          } else if (entry.$1 == 'privacy') {
+                            showPrivacyPolicy();
                           } else if (entry.$1 == 'decorate') {
                             showDecorations();
                           } else {
@@ -596,6 +602,38 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                 ],
               ))),
             ));
+  }
+
+  void showPrivacyPolicy() {
+    showGuildDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(24),
+        child: PixelPanel(
+          child: SingleChildScrollView(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  FutureBuilder<String>(
+                    future: rootBundle.loadString('assets/privacy_policy.txt'),
+                    builder: (context, snapshot) => SelectableText(
+                        snapshot.data ?? '',
+                        style: const TextStyle(
+                            color: ink,
+                            fontFamily: 'sans-serif',
+                            fontSize: 13,
+                            height: 1.5)),
+                  ),
+                  const SizedBox(height: 12),
+                  GuildButton(
+                      label: t('돌아가기'),
+                      onPressed: () => Navigator.pop(dialogContext)),
+                ]),
+          ),
+        ),
+      ),
+    );
   }
 
   void showDecorations() {

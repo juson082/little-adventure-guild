@@ -1,0 +1,37 @@
+HVILDIR PRIVACY POLICY
+Last updated: November 6, 2026
+
+Hvildir is a daily quest app. Contact: juson082@gmail.com.
+
+LOCATION AND WEATHER
+Weather-based quest selection is optional. If you enable it and grant location permission, Hvildir reads your approximate location while the app is in use. It rounds latitude and longitude to one decimal place and sends them over HTTPS directly to the Norwegian Meteorological Institute (MET Norway) to request a forecast. MET Norway receives your IP address and approximate coordinates and may record them in its service logs. See https://www.met.no/en/about-us/privacy and https://docs.api.met.no/doc/TermsOfService.html.
+
+Hvildir does not store your coordinates or send them to the developer. A request cooldown time is stored on your device. You can disable weather in the app settings or revoke location permission in Android settings. The app works without location; quests are then selected without weather information. Your selected quest is not replaced merely because you change this setting.
+
+ON-DEVICE DATA
+Quest progress, completion or failure, gold, decorations, tutorial and greeting history, language and weather preferences are saved on your device. They are not sent to the developer. Android backup is disabled for this app. Clearing app data or uninstalling deletes this local data. It cannot be restored by the developer.
+
+OTHER INFORMATION
+No account, advertising, analytics, payment or quest-submission service is included in this version. If you contact the developer by email, your message and email address are used to respond and retained as needed to handle your inquiry; you may request deletion by email. Email providers process correspondence under their own policies. MET Norway determines the retention of its own service logs; see its privacy policy or contact MET Norway about them.
+
+CONTACT AND CHANGES
+For privacy questions or deletion requests, email juson082@gmail.com. If data practices change, this policy will be updated.
+
+HVILDIR 개인정보처리방침
+최종 수정: 2026년 11월 6일
+
+Hvildir는 매일 작은 의뢰를 제공하는 앱입니다. 개인정보 문의: juson082@gmail.com
+
+위치와 날씨
+날씨를 활용한 의뢰 선택은 선택 사항입니다. 위치와 날씨를 켜고 기기 위치 권한을 허용하면 앱 사용 중 대략적인 위치를 확인합니다. 위도·경도를 소수점 한 자리로 반올림하여 HTTPS로 노르웨이 기상청(MET Norway)에 직접 전송하고 예보를 요청합니다. MET Norway는 대략적인 좌표와 IP 주소를 받으며 서비스 로그에 기록할 수 있습니다. 해당 기관의 방침: https://www.met.no/en/about-us/privacy
+
+앱은 좌표를 저장하거나 개발자에게 보내지 않습니다. 요청 재시도 가능 시각은 기기에 저장합니다. 앱 설정에서 날씨 사용을 끄거나 기기 설정에서 위치 권한을 철회할 수 있습니다. 위치 없이도 앱을 사용할 수 있으며, 이때는 날씨 정보를 제외하고 의뢰를 고릅니다. 설정을 바꾸어도 이미 선택한 의뢰는 바뀌지 않습니다.
+
+기기에 저장되는 정보
+의뢰 진행 및 완료·실패 상태, 골드, 장식, 튜토리얼 및 인사 기록, 언어와 날씨 설정을 기기에 저장합니다. 개발자에게 전송하지 않으며 Android 백업을 사용하지 않습니다. 앱 데이터 삭제 또는 앱 삭제 시 기기 내 기록이 삭제되며 개발자가 복구할 수 없습니다.
+
+기타 정보
+현재 버전에는 회원가입, 광고, 분석 도구, 결제 및 의뢰 제출 서비스가 없습니다. 이메일로 문의하면 답변을 위해 이메일 주소와 내용을 사용하고 문의 처리에 필요한 기간 동안 보관합니다. 이메일로 삭제를 요청할 수 있으며, 이메일 서비스 제공자의 정책이 별도로 적용됩니다. MET Norway의 로그 보관·삭제는 해당 기관의 개인정보처리방침을 확인하거나 기관에 문의해 주세요.
+
+문의와 변경
+개인정보 또는 삭제 요청: juson082@gmail.com. 정보 처리 방식이 변경되면 이 방침을 수정합니다.
