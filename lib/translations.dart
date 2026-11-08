@@ -203,9 +203,17 @@ const translations = <String, Map<String, String>>{
         'さあ、急ぐことはない。巻物を開いて、今日の小さな冒険に出会っておいで！',
   }
 };
+const audioTranslations = <String, Map<String, String>>{
+  'en': {'음량': 'Volume', '음악': 'Music', '효과음': 'Sound effects'},
+  'ja': {'음량': '音量', '음악': '音楽', '효과음': '効果音'},
+  'zh': {'음량': '音量', '음악': '音乐', '효과음': '音效'},
+  'hi': {'음량': 'आवाज़', '음악': 'संगीत', '효과음': 'ध्वनि प्रभाव'},
+  'es': {'음량': 'Volumen', '음악': 'Música', '효과음': 'Efectos de sonido'},
+};
 String translate(String language, String key) => language == 'ko'
     ? key
-    : (environmentTranslations[language]?[key] ??
+    : (audioTranslations[language]?[key] ??
+        environmentTranslations[language]?[key] ??
         hardQuestTranslations[language]?[key] ??
         translations[language]?[key] ??
         extraTranslations[language]?[key] ??

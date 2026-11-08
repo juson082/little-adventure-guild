@@ -7,11 +7,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'guild_content.dart';
+import 'guild_audio.dart';
 import 'quest_environment.dart';
 import 'quest_schedule.dart';
 import 'environment_service.dart';
 import 'guild_decorations.dart';
 import 'hard_quests.dart';
+import 'quest_feedback.dart';
 import 'translations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -123,8 +125,12 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   bool tutorialPaused = false;
   bool greetingFinished = false;
   bool revealing = false;
+  double musicVolume = 1;
+  double effectsVolume = 1;
   bool documentClosed = false;
   bool showGreeting = false;
+  bool? feedbackSuccess;
+  int feedbackIndex = 0;
   bool? tutorialComplete;
   String? languageOverride;
   String get language {
@@ -187,6 +193,11 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     loading = true;
     try {
       final store = await SharedPreferences.getInstance();
+      final savedMusicVolume =
+          (store.getDouble('music_volume') ?? 1.0).clamp(0.0, 1.0);
+      final savedEffectsVolume =
+          (store.getDouble('effects_volume') ?? 1.0).clamp(0.0, 1.0);
+      GuildAudio.setEffectsVolume(savedEffectsVolume);
       final completedTutorial =
           tutorialComplete ?? store.getBool('tutorial_complete') ?? false;
       languageOverride = store.getString('language_override');
@@ -294,12 +305,15 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
       if (mounted) {
         setState(() {
           prefs = store;
+          musicVolume = savedMusicVolume;
+          effectsVolume = savedEffectsVolume;
           today = saved;
           error = null;
           tutorialComplete = completedTutorial;
           languageOverride = store.getString('language_override');
           if (shouldGreet) greeting = selectedGreeting;
           if (isVisit) {
+            feedbackSuccess = null;
             showGreeting = shouldGreet;
             greetingFinished = completedTutorial && !shouldGreet;
           }
@@ -415,6 +429,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
       revealing = true;
       documentClosed = false;
     });
+    GuildAudio.reveal(hard: (today!['quest'] as int) >= quests.length);
     await update('opened', openedAt: openedAt);
     if (!mounted) return;
     await Future<void>.delayed(MediaQuery.disableAnimationsOf(context)
@@ -439,12 +454,20 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     }
     if (MediaQuery.disableAnimationsOf(context)) {
       await update('completed');
+      if (mounted && today?['completed'] == true) {
+        GuildAudio.gold();
+        showQuestFeedback(true);
+      }
       return;
     }
     final root = screenKey.currentContext?.findRenderObject() as RenderBox?;
     final button = completeKey.currentContext?.findRenderObject() as RenderBox?;
     if (root == null || button == null) {
       await update('completed');
+      if (mounted && today?['completed'] == true) {
+        GuildAudio.gold();
+        showQuestFeedback(true);
+      }
       return;
     }
     final start = root
@@ -467,10 +490,33 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
       rewardStart = start;
       rewardEnd = end;
     });
+    GuildAudio.gold();
     await Future<void>.delayed(const Duration(milliseconds: 1450));
     if (!mounted) return;
     await update('completed');
-    if (mounted) setState(() => rewarding = false);
+    if (mounted) {
+      setState(() => rewarding = false);
+      if (today?['completed'] == true) showQuestFeedback(true);
+    }
+  }
+
+  Future<void> failQuest() async {
+    await update('failed');
+    if (mounted && today?['failed'] == true) showQuestFeedback(false);
+  }
+
+  void showQuestFeedback(bool success) {
+    final messages = success ? questSuccessMessages : questFailureMessages;
+    final index = Random().nextInt(messages['ko']!.length);
+    setState(() {
+      feedbackSuccess = success;
+      feedbackIndex = index;
+      greeting = messages['ko']![index];
+      documentClosed = true;
+      greetingFinished = false;
+      showGreeting = true;
+    });
+    startGreeting();
   }
 
   Future<void> update(String key, {int? openedAt}) async {
@@ -680,6 +726,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                         const SizedBox(height: 16),
                         for (final item in guildDecorations) ...[
                           GuildButton(
+                              soundEnabled: false,
                               label: owned.contains(item.id)
                                   ? '${decorationName(language, item)} · ${(today?['active_items'] as List? ?? []).contains(item.id) ? t("치우기") : t("놓기")}'
                                   : '${decorationName(language, item)} · $decorationPrice G',
@@ -704,73 +751,116 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   Future<void> showLanguageSettings() async {
     await showGuildDialog<void>(
         context: context,
-        builder: (dialogContext) => Dialog(
-              backgroundColor: Colors.transparent,
-              insetPadding: const EdgeInsets.all(24),
-              child: SingleChildScrollView(
-                  child: PixelPanel(
-                      child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                    Text(t('언어'),
-                        style: const TextStyle(
-                            color: ink,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 14),
-                    for (final (code, name) in [
-                      ('device', t('기기 설정 따르기')),
-                      ('ko', '한국어'),
-                      ('en', 'English'),
-                      ('ja', '日本語'),
-                      ('zh', '简体中文'),
-                      ('hi', 'हिन्दी'),
-                      ('es', 'Español')
-                    ]) ...[
-                      GuildButton(
-                          label:
-                              '${(languageOverride ?? 'device') == code ? '● ' : ''}$name',
-                          onPressed: () async {
-                            try {
+        builder: (dialogContext) => StatefulBuilder(
+            builder: (dialogContext, refresh) => Dialog(
+                  backgroundColor: Colors.transparent,
+                  insetPadding: const EdgeInsets.all(24),
+                  child: SingleChildScrollView(
+                      child: PixelPanel(
+                          child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                        Text(t('음량'),
+                            style: const TextStyle(
+                                color: ink,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800)),
+                        for (final isMusic in [true, false]) ...[
+                          Text(t(isMusic ? '음악' : '효과음'),
+                              style: const TextStyle(
+                                  color: ink, fontWeight: FontWeight.bold)),
+                          Slider(
+                            key: ValueKey(
+                                isMusic ? 'musicVolume' : 'effectsVolume'),
+                            value: isMusic ? musicVolume : effectsVolume,
+                            min: 0,
+                            max: 1,
+                            divisions: 10,
+                            label:
+                                '${((isMusic ? musicVolume : effectsVolume) * 100).round()}%',
+                            activeColor: brown,
+                            onChanged: (value) {
+                              refresh(() {
+                                if (isMusic) {
+                                  musicVolume = value;
+                                } else {
+                                  effectsVolume = value;
+                                  GuildAudio.setEffectsVolume(value);
+                                }
+                              });
+                            },
+                            onChangeEnd: (value) async {
                               final store = prefs ??
                                   await SharedPreferences.getInstance();
-                              final success = code == 'device'
-                                  ? await store.remove('language_override')
-                                  : await store.setString(
-                                      'language_override', code);
-                              if (!success) throw Exception('save failed');
-                              if (!mounted || !dialogContext.mounted) return;
-                              setState(() => languageOverride =
-                                  code == 'device' ? null : code);
-                              widget.onLanguageChanged?.call(languageOverride);
-                              Navigator.pop(dialogContext);
-                            } catch (_) {
-                              if (dialogContext.mounted) {
-                                ScaffoldMessenger.of(dialogContext)
-                                    .showSnackBar(SnackBar(
-                                        content: Text(
-                                            t('기록을 저장하지 못했어요. 다시 시도해 주세요.'))));
-                              }
-                            }
-                          }),
-                      const SizedBox(height: 7),
-                    ],
-                    const SizedBox(height: 6),
-                    if (Platform.isAndroid) ...[
-                      GuildButton(
-                          label: t('위치와 날씨'),
-                          onPressed: () {
-                            Navigator.pop(dialogContext);
-                            showWeatherSettings();
-                          }),
-                      const SizedBox(height: 7),
-                    ],
-                    GuildButton(
-                        label: t('돌아가기'),
-                        onPressed: () => Navigator.pop(dialogContext)),
-                  ]))),
-            ));
+                              await store.setDouble(
+                                  isMusic ? 'music_volume' : 'effects_volume',
+                                  value);
+                            },
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        Text(t('언어'),
+                            style: const TextStyle(
+                                color: ink,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 14),
+                        for (final (code, name) in [
+                          ('device', t('기기 설정 따르기')),
+                          ('ko', '한국어'),
+                          ('en', 'English'),
+                          ('ja', '日本語'),
+                          ('zh', '简体中文'),
+                          ('hi', 'हिन्दी'),
+                          ('es', 'Español')
+                        ]) ...[
+                          GuildButton(
+                              label:
+                                  '${(languageOverride ?? 'device') == code ? '● ' : ''}$name',
+                              onPressed: () async {
+                                try {
+                                  final store = prefs ??
+                                      await SharedPreferences.getInstance();
+                                  final success = code == 'device'
+                                      ? await store.remove('language_override')
+                                      : await store.setString(
+                                          'language_override', code);
+                                  if (!success) throw Exception('save failed');
+                                  if (!mounted || !dialogContext.mounted) {
+                                    return;
+                                  }
+                                  setState(() => languageOverride =
+                                      code == 'device' ? null : code);
+                                  widget.onLanguageChanged
+                                      ?.call(languageOverride);
+                                  Navigator.pop(dialogContext);
+                                } catch (_) {
+                                  if (dialogContext.mounted) {
+                                    ScaffoldMessenger.of(dialogContext)
+                                        .showSnackBar(SnackBar(
+                                            content: Text(t(
+                                                '기록을 저장하지 못했어요. 다시 시도해 주세요.'))));
+                                  }
+                                }
+                              }),
+                          const SizedBox(height: 7),
+                        ],
+                        const SizedBox(height: 6),
+                        if (Platform.isAndroid) ...[
+                          GuildButton(
+                              label: t('위치와 날씨'),
+                              onPressed: () {
+                                Navigator.pop(dialogContext);
+                                showWeatherSettings();
+                              }),
+                          const SizedBox(height: 7),
+                        ],
+                        GuildButton(
+                            label: t('돌아가기'),
+                            onPressed: () => Navigator.pop(dialogContext)),
+                      ]))),
+                )));
   }
 
   Widget weatherExplanation() =>
@@ -1025,6 +1115,12 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                             alignment: Alignment.topCenter,
                             filterQuality: FilterQuality.none),
                       ))),
+                  if ((today?['active_items'] as List? ?? []).isNotEmpty)
+                    Positioned.fill(
+                        child: IgnorePointer(
+                            child: GuildDecorationEffects(
+                                activeItems: Set<String>.from(
+                                    today?['active_items'] as List? ?? [])))),
                   const Positioned.fill(
                       child: IgnorePointer(child: GuildLanternGlow())),
                   if (tutorialPaused)
@@ -1086,7 +1182,10 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                               key: goldKey,
                               onPressed: today == null || rewarding
                                   ? null
-                                  : showDecorations,
+                                  : () {
+                                      GuildAudio.wood();
+                                      showDecorations();
+                                    },
                               style: TextButton.styleFrom(
                                 foregroundColor: const Color(0xffffefcc),
                                 disabledForegroundColor:
@@ -1126,7 +1225,12 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                           child: Material(
                               color: Colors.transparent,
                               child: InkWell(
-                                onTap: rewarding ? null : showGuildMenu,
+                                onTap: rewarding
+                                    ? null
+                                    : () {
+                                        GuildAudio.wood();
+                                        showGuildMenu();
+                                      },
                                 child: Container(
                                     width: 44,
                                     height: 44,
@@ -1186,7 +1290,13 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                                 tutorialComplete == false
                                                     ? t(guildTutorial[
                                                         tutorialStep])
-                                                    : t(greeting),
+                                                    : feedbackSuccess == null
+                                                        ? t(greeting)
+                                                        : (feedbackSuccess!
+                                                                    ? questSuccessMessages
+                                                                    : questFailureMessages)[
+                                                                language]![
+                                                            feedbackIndex],
                                                 style: const TextStyle(
                                                     color: ink,
                                                     fontFamily: 'sans-serif',
@@ -1260,14 +1370,11 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                                                     .keyboard_double_arrow_down,
                                                 color: Color(0xffffd681),
                                                 size: 30),
-                                            SizedBox(
-                                                width: 220,
-                                                height: 150,
-                                                child: Image.asset(
-                                                    'assets/sealed_scroll_v2.png',
-                                                    fit: BoxFit.contain,
-                                                    filterQuality:
-                                                        FilterQuality.none)),
+                                            const SizedBox(
+                                              width: 220,
+                                              height: 150,
+                                              child: SealedScrollAura(),
+                                            ),
                                           ]),
                                     ),
                                   ),
@@ -1315,7 +1422,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                         ),
                       ),
                       child: QuestDocument(
-                        title: t(item!.$1),
+                        title: t(item.$1),
                         description: t(item.$2),
                         hard: isHard,
                         completed: completed,
@@ -1330,9 +1437,8 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                         onComplete: busy || rewarding || resolved
                             ? null
                             : completeQuest,
-                        onFail: busy || rewarding || resolved
-                            ? null
-                            : () => update('failed'),
+                        onFail:
+                            busy || rewarding || resolved ? null : failQuest,
                         onClose: rewarding
                             ? null
                             : () => setState(() => documentClosed = true),
@@ -1363,11 +1469,7 @@ class GuildRoomBackground extends StatelessWidget {
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           final roomHeight = width * 1312 / 1199;
-          final floorHeight = width * 383 / 1199;
-          final count = floorHeight > 0
-              ? max(0,
-                  ((constraints.maxHeight - roomHeight) / floorHeight).ceil())
-              : 0;
+          final floorTop = width / 1.29;
           return ClipRect(
             child: Stack(fit: StackFit.expand, children: [
               Positioned(
@@ -1377,22 +1479,208 @@ class GuildRoomBackground extends StatelessWidget {
                 child: Image.asset('assets/guild_interior_v4.png',
                     fit: BoxFit.fitWidth, filterQuality: FilterQuality.none),
               ),
-              for (var i = 0; i < count; i++)
+              if (constraints.maxHeight > roomHeight)
                 Positioned(
-                  top: roomHeight + i * floorHeight,
+                  top: roomHeight,
                   left: 0,
                   right: 0,
-                  height: floorHeight + .5,
-                  child: Transform.flip(
-                    flipY: i.isEven,
-                    child: Image.asset('assets/guild_floor_extension.png',
-                        fit: BoxFit.fill, filterQuality: FilterQuality.none),
+                  bottom: 0,
+                  child: Image.asset('assets/guild_floor_extension.png',
+                      fit: BoxFit.fill, filterQuality: FilterQuality.none),
+                ),
+              if (constraints.maxHeight > floorTop)
+                Positioned(
+                  top: floorTop,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Color(0xcc291c15)],
+                        stops: [0, .6],
+                      ),
+                    ),
                   ),
                 ),
             ]),
           );
         },
       );
+}
+
+class GuildDecorationEffects extends StatefulWidget {
+  const GuildDecorationEffects({super.key, required this.activeItems});
+  final Set<String> activeItems;
+
+  @override
+  State<GuildDecorationEffects> createState() => _GuildDecorationEffectsState();
+}
+
+class _GuildDecorationEffectsState extends State<GuildDecorationEffects>
+    with WidgetsBindingObserver {
+  Timer? timer;
+  int frame = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    start();
+  }
+
+  void start() {
+    timer?.cancel();
+    if (MediaQuery.disableAnimationsOf(context) ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.paused) {
+      return;
+    }
+    timer = Timer.periodic(const Duration(milliseconds: 125), (_) {
+      if (mounted) setState(() => frame = (frame + 1) % 32);
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      start();
+    } else {
+      timer?.cancel();
+    }
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+        painter: GuildDecorationEffectsPainter(widget.activeItems, frame),
+      );
+}
+
+class GuildDecorationEffectsPainter extends CustomPainter {
+  const GuildDecorationEffectsPainter(this.activeItems, this.frame);
+  final Set<String> activeItems;
+  final int frame;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scale = size.width / 360;
+    canvas.save();
+    canvas.scale(scale);
+    final angle = frame * 2 * pi / 32;
+    final pulse = (1 + sin(angle)) / 2;
+    const gold = Color(0xffffe191);
+    const blue = Color(0xff9ef7ff);
+    const ember = Color(0xffffa74c);
+
+    void spark(double x, double y, double radius, Color color, double alpha) {
+      final paint = Paint()..color = color.withValues(alpha: alpha.clamp(0, 1));
+      final px = x.roundToDouble(), py = y.roundToDouble();
+      canvas.drawRect(Rect.fromLTWH(px - radius, py, radius * 2 + 1, 2), paint);
+      canvas.drawRect(Rect.fromLTWH(px, py - radius, 2, radius * 2 + 1), paint);
+    }
+
+    void twinkles(double x, double y, List<Offset> points, Color color) {
+      for (var i = 0; i < points.length; i++) {
+        final alpha = (35 + 125 * (.5 + .5 * sin(angle + i * 2))) / 255;
+        spark(x + points[i].dx, y + points[i].dy, 2, color, alpha);
+      }
+    }
+
+    if (activeItems.contains('sword')) {
+      final progress = frame / 31;
+      spark(13, 102 + 45 * progress, 3, gold,
+          (50 + 145 * sin(pi * progress)) / 255);
+      spark(9, 94, 2, gold, (40 + 100 * pulse) / 255);
+    }
+    if (activeItems.contains('shield')) {
+      final progress = frame / 31;
+      spark(51 + 24 * progress, 226 + 32 * progress, 3, gold,
+          (75 + 115 * sin(pi * progress)) / 255);
+      spark(63, 244, 2, gold, (45 + 100 * pulse) / 255);
+    }
+    if (activeItems.contains('sigil')) {
+      for (var i = 0; i < 6; i++) {
+        final theta = angle + i * 2 * pi / 6;
+        spark(180 + 19 * cos(theta), 99 + 19 * sin(theta), 2, gold, 155 / 255);
+      }
+      spark(180, 99, 2, gold, (85 + 130 * pulse) / 255);
+    }
+    if (activeItems.contains('crystal')) {
+      final path = Path()
+        ..moveTo(255, 139)
+        ..lineTo(246, 153)
+        ..lineTo(247, 170)
+        ..lineTo(255, 177)
+        ..lineTo(264, 168)
+        ..lineTo(263, 151)
+        ..close();
+      canvas.drawPath(
+          path,
+          Paint()
+            ..color = const Color(0xff68fffa)
+                .withValues(alpha: (10 + 40 * pulse) / 255));
+      for (var i = 0; i < 3; i++) {
+        final theta = angle + i * 2 * pi / 3;
+        spark(255 + 19 * cos(theta), 158 + 20 * sin(theta), 2, blue, 150 / 255);
+      }
+    }
+    if (activeItems.contains('helm')) {
+      for (var i = 0; i < 3; i++) {
+        final progress = (frame / 32 + i / 3) % 1;
+        spark(40 + i * 8 + 2 * sin(angle + i), 156 - 18 * progress, 2, ember,
+            140 * (1 - progress) / 255);
+      }
+      canvas.drawRect(const Rect.fromLTWH(44, 152, 9, 3),
+          Paint()..color = ember.withValues(alpha: (25 + 65 * pulse) / 255));
+    }
+    if (activeItems.contains('staff')) {
+      for (var i = 0; i < 3; i++) {
+        final theta = angle + i * 2 * pi / 3;
+        spark(351 + 7 * cos(theta), 102 + 12 * sin(theta), 2, gold, 165 / 255);
+      }
+      spark(351, 97, 3, gold, (80 + 130 * pulse) / 255);
+    }
+    if (activeItems.contains('banner_dragon')) {
+      twinkles(
+          180, 84, const [Offset(-14, -4), Offset(0, 1), Offset(14, -4)], gold);
+    }
+    if (activeItems.contains('spellbook')) {
+      for (var i = 0; i < 3; i++) {
+        final progress = (frame / 32 + i / 3) % 1;
+        spark(41 + i * 8 + 3 * sin(angle + i), 158 - 20 * progress, 2, blue,
+            145 * (1 - progress) / 255);
+      }
+      canvas.drawRect(const Rect.fromLTWH(39, 162, 20, 2),
+          Paint()..color = blue.withValues(alpha: (30 + 80 * pulse) / 255));
+    }
+    if (activeItems.contains('treasure')) {
+      twinkles(
+          255, 162, const [Offset(-9, -9), Offset(8, -3), Offset(0, 5)], gold);
+    }
+    if (activeItems.contains('armor')) {
+      twinkles(273, 150, const [Offset(-9, -13), Offset(8, -5), Offset(0, 13)],
+          blue);
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant GuildDecorationEffectsPainter oldDelegate) =>
+      oldDelegate.frame != frame ||
+      !setEquals(oldDelegate.activeItems, activeItems);
 }
 
 class GuildDecorationClipper extends CustomClipper<Rect> {
@@ -1553,7 +1841,12 @@ class QuestDocument extends StatelessWidget {
                   {Key? key}) =>
               TextButton(
                 key: key,
-                onPressed: callback,
+                onPressed: callback == null
+                    ? null
+                    : () {
+                        GuildAudio.wood();
+                        callback();
+                      },
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   minimumSize: Size.zero,
@@ -1768,7 +2061,12 @@ class OrnateFramePainter extends CustomPainter {
 class GuildButton extends StatefulWidget {
   final String label;
   final VoidCallback? onPressed;
-  const GuildButton({super.key, required this.label, required this.onPressed});
+  final bool soundEnabled;
+  const GuildButton(
+      {super.key,
+      required this.label,
+      required this.onPressed,
+      this.soundEnabled = true});
   @override
   State<GuildButton> createState() => _GuildButtonState();
 }
@@ -1800,7 +2098,12 @@ class _GuildButtonState extends State<GuildButton> {
                       fit: BoxFit.fill,
                       filterQuality: FilterQuality.none)),
               child: TextButton(
-                  onPressed: widget.onPressed,
+                  onPressed: widget.onPressed == null
+                      ? null
+                      : () {
+                          if (widget.soundEnabled) GuildAudio.wood();
+                          widget.onPressed!();
+                        },
                   style: TextButton.styleFrom(
                       foregroundColor: const Color(0xffffefd1),
                       disabledForegroundColor: const Color(0xffffefd1),
@@ -1870,6 +2173,96 @@ class RewardFlightPainter extends CustomPainter {
       oldDelegate.end != end;
 }
 
+class SealedScrollAura extends StatefulWidget {
+  const SealedScrollAura({super.key});
+  @override
+  State<SealedScrollAura> createState() => _SealedScrollAuraState();
+}
+
+class _SealedScrollAuraState extends State<SealedScrollAura>
+    with WidgetsBindingObserver {
+  Timer? timer;
+  int frame = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    updateTimer();
+  }
+
+  void updateTimer() {
+    timer?.cancel();
+    if (MediaQuery.disableAnimationsOf(context) ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.paused) {
+      return;
+    }
+    timer = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      if (mounted) setState(() => frame = (frame + 1) % 16);
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      updateTimer();
+    } else {
+      timer?.cancel();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+        painter: SealedScrollAuraPainter(frame / 16),
+        child: Image.asset('assets/sealed_scroll_v2.png',
+            fit: BoxFit.contain, filterQuality: FilterQuality.none),
+      );
+}
+
+class SealedScrollAuraPainter extends CustomPainter {
+  const SealedScrollAuraPainter(this.phase);
+  final double phase;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final pulse = .5 + .5 * sin(phase * 2 * pi);
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width * (.42 + .06 * pulse);
+    final glow = Paint()
+      ..shader = RadialGradient(colors: [
+        Color(0xffffd77d).withValues(alpha: .12 + .07 * pulse),
+        Color(0xffffc65e).withValues(alpha: .07 + .04 * pulse),
+        Colors.transparent,
+      ]).createShader(Rect.fromCircle(center: center, radius: radius));
+    canvas.drawCircle(center, radius, glow);
+    for (var i = 0; i < 7; i++) {
+      final angle = i * 2 * pi / 7 + phase * 2 * pi;
+      final position = center +
+          Offset(cos(angle) * size.width * .43, sin(angle) * size.height * .37);
+      final alpha = .28 + .38 * (.5 + .5 * sin(phase * 2 * pi + i));
+      final paint = Paint()..color = Color(0xffffdf98).withValues(alpha: alpha);
+      canvas.drawRect(
+          Rect.fromCenter(center: position, width: 3, height: 3), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant SealedScrollAuraPainter oldDelegate) =>
+      oldDelegate.phase != phase;
+}
+
 class QuestReveal extends StatelessWidget {
   final bool hard;
   const QuestReveal({super.key, this.hard = false});
@@ -1877,8 +2270,26 @@ class QuestReveal extends StatelessWidget {
   Widget build(BuildContext context) => TweenAnimationBuilder<double>(
         tween: Tween(begin: 0, end: 1),
         duration: const Duration(seconds: 3),
-        builder: (context, value, _) =>
-            CustomPaint(painter: QuestRevealPainter(value, hard)),
+        builder: (context, value, _) => Stack(children: [
+          Positioned.fill(
+              child: CustomPaint(painter: QuestRevealPainter(value, hard))),
+          Positioned.fill(
+            child: Align(
+              alignment: const Alignment(0, .04),
+              child: Opacity(
+                opacity: ((1 - value) / .18).clamp(0.0, 1.0),
+                child: Transform.scale(
+                  scale: 1 + .08 * sin(pi * value),
+                  child: SizedBox(
+                    width: min(260, MediaQuery.sizeOf(context).width * .65),
+                    child: Image.asset('assets/sealed_scroll_v2.png',
+                        fit: BoxFit.contain, filterQuality: FilterQuality.none),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ]),
       );
 }
 

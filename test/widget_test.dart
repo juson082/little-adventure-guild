@@ -4,13 +4,35 @@ import 'package:little_adventure_guild/hard_quests.dart';
 import 'dart:convert';
 import 'package:little_adventure_guild/translations.dart';
 import 'package:little_adventure_guild/greeting_translations.dart';
+import 'package:little_adventure_guild/quest_feedback.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:little_adventure_guild/main.dart';
 
 void main() {
+  test('퀘스트 결과 대사는 모든 언어에 다섯 개씩 있다', () {
+    for (final language in ['ko', 'en', 'ja', 'zh', 'hi', 'es']) {
+      expect(questSuccessMessages[language], hasLength(5));
+      expect(questFailureMessages[language], hasLength(5));
+      expect(
+          questSuccessMessages[language]!.every((s) => s.isNotEmpty), isTrue);
+      expect(
+          questFailureMessages[language]!.every((s) => s.isNotEmpty), isTrue);
+    }
+  });
   testWidgets('퀘스트를 열고 완료한 상태가 다시 열어도 유지된다', (tester) async {
+    const audio = MethodChannel('hvildir/sound_effects');
+    final playedSounds = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(audio, (call) async {
+      if (call.method == 'play') playedSounds.add(call.arguments as String);
+      return null;
+    });
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(audio, null));
     final now = DateTime.now();
     final date =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -37,6 +59,7 @@ void main() {
     final tappedAt = DateTime.now().toUtc().millisecondsSinceEpoch;
     await tester.tap(find.byKey(const ValueKey('openQuest')));
     await tester.pump();
+    expect(playedSounds, ['reveal_normal']);
     expect(find.byType(QuestDocument), findsNothing);
     await tester.pump(const Duration(seconds: 2));
     expect(find.byType(QuestDocument), findsNothing);
@@ -53,6 +76,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('openQuest')));
     await tester.pump();
     expect(find.byType(QuestDocument), findsOneWidget);
+    expect(playedSounds, ['reveal_normal']);
     expect(
         jsonDecode((await SharedPreferences.getInstance()).getString('today')!)[
             'opened_at_ms'],
@@ -62,7 +86,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('퀘스트 완료'));
     await tester.pumpAndSettle();
-    expect(find.text('퀘스트 완료'), findsOneWidget);
+    expect(
+        find.byWidgetPredicate(
+            (w) => w is Text && questSuccessMessages['ko']!.contains(w.data)),
+        findsOneWidget);
     expect(
         (jsonDecode((await SharedPreferences.getInstance()).getString('today')!)
             as Map)['gold'],
@@ -73,6 +100,45 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();
     expect(find.text('퀘스트 완료'), findsOneWidget);
+  });
+  testWidgets('어려운 의뢰를 처음 열 때만 어려운 의뢰 효과음이 재생된다', (tester) async {
+    const audio = MethodChannel('hvildir/sound_effects');
+    final playedSounds = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(audio, (call) async {
+      if (call.method == 'play') playedSounds.add(call.arguments as String);
+      return null;
+    });
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(audio, null));
+    final now = DateTime.now();
+    final date =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    SharedPreferences.setMockInitialValues({
+      'tutorial_complete': true,
+      'language_override': 'ko',
+      'last_greeting_date': date,
+      'today': jsonEncode({
+        'date': date,
+        'quest': quests.length,
+        'catalogVersion': 1,
+        'opened': false,
+        'completed': false,
+      }),
+    });
+    await tester.pumpWidget(const GuildApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('openQuest')));
+    await tester.pump();
+    expect(playedSounds, ['reveal_hard']);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('closeQuest')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('openQuest')));
+    await tester.pump();
+    expect(playedSounds, ['reveal_hard']);
   });
   testWidgets('길드 메뉴에서 안내를 열고 닫는다', (tester) async {
     SharedPreferences.setMockInitialValues(
@@ -110,8 +176,6 @@ void main() {
     await tester.ensureVisible(find.text('퀘스트 완료'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('퀘스트 완료'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('closeQuest')));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('길드 메뉴'));
     await tester.pumpAndSettle();
@@ -156,7 +220,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('퀘스트 실패'));
     await tester.pumpAndSettle();
-    expect(find.text('퀘스트 실패'), findsOneWidget);
+    expect(
+        find.byWidgetPredicate(
+            (w) => w is Text && questFailureMessages['ko']!.contains(w.data)),
+        findsOneWidget);
     expect(
         (jsonDecode((await SharedPreferences.getInstance()).getString('today')!)
             as Map)['gold'],
@@ -403,6 +470,16 @@ void main() {
   }
 
   testWidgets('동전 연출이 끝난 뒤에만 골드를 지급한다', (tester) async {
+    const channel = MethodChannel('hvildir/sound_effects');
+    final sounds = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'play') sounds.add(call.arguments as String);
+      return null;
+    });
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
     final now = DateTime.now();
     final date =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -433,6 +510,7 @@ void main() {
     expect(state()['gold'], 5);
     expect(state()['completed'], isFalse);
     expect(find.byType(RewardFlight), findsOneWidget);
+    expect(sounds, ['wood', 'gold']);
     await tester.pump(const Duration(milliseconds: 1500));
     await tester.pumpAndSettle();
     expect(state()['gold'], 15);
