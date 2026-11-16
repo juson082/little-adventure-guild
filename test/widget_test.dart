@@ -11,6 +11,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:little_adventure_guild/main.dart';
 
+Future<void> dismissGreeting(WidgetTester tester) async {
+  final dialogue = find.byType(GuildDialogueText);
+  if (dialogue.evaluate().isEmpty) return;
+  await tester.tap(dialogue);
+  await tester.pump();
+  if (dialogue.evaluate().isNotEmpty) {
+    await tester.tap(dialogue);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+  await tester.pumpAndSettle();
+}
+
 void main() {
   test('퀘스트 결과 대사는 모든 언어에 다섯 개씩 있다', () {
     for (final language in ['ko', 'en', 'ja', 'zh', 'hi', 'es']) {
@@ -50,9 +63,7 @@ void main() {
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('openQuest')), findsNothing);
-    await tester.pump(const Duration(seconds: 12));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpAndSettle();
+    await dismissGreeting(tester);
     expect(find.byKey(const ValueKey('openQuest')), findsOneWidget);
     await tester.ensureVisible(find.byKey(const ValueKey('openQuest')));
     await tester.pumpAndSettle();
@@ -87,8 +98,9 @@ void main() {
     await tester.tap(find.text('퀘스트 완료'));
     await tester.pumpAndSettle();
     expect(
-        find.byWidgetPredicate(
-            (w) => w is Text && questSuccessMessages['ko']!.contains(w.data)),
+        find.byWidgetPredicate((w) =>
+            w is GuildDialogueText &&
+            questSuccessMessages['ko']!.contains(w.text)),
         findsOneWidget);
     expect(
         (jsonDecode((await SharedPreferences.getInstance()).getString('today')!)
@@ -96,10 +108,9 @@ void main() {
         10);
     await tester.pumpWidget(const GuildApp(key: ValueKey('restart')));
     await tester.pumpAndSettle();
-    await tester.pump(const Duration(seconds: 12));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpAndSettle();
-    expect(find.text('퀘스트 완료'), findsOneWidget);
+    await dismissGreeting(tester);
+    expect(find.text('퀘스트 완료'), findsNothing);
+    expect(find.byKey(const ValueKey('openQuest')), findsNothing);
   });
   testWidgets('어려운 의뢰를 처음 열 때만 어려운 의뢰 효과음이 재생된다', (tester) async {
     const audio = MethodChannel('hvildir/sound_effects');
@@ -149,8 +160,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('길드 지원하기'));
     await tester.pumpAndSettle();
-    expect(find.text('작은 보급품'), findsOneWidget);
-    await tester.tap(find.text('돌아가기'));
+    expect(find.textContaining('작은 보급품'), findsOneWidget);
+    await tester.tap(find.byType(PixelCloseButton).last);
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('길드 메뉴'));
     await tester.pumpAndSettle();
@@ -170,33 +181,25 @@ void main() {
     });
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
-    await tester.pump(const Duration(seconds: 12));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpAndSettle();
+    await dismissGreeting(tester);
     await tester.ensureVisible(find.text('퀘스트 완료'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('퀘스트 완료'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('길드 메뉴'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('길드 꾸미기'));
+    await tester.tap(find.byTooltip('보유 골드'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('별의 수호검 · 150 G'));
     await tester.pumpAndSettle();
     expect(find.text('별의 수호검 · 치우기'), findsOneWidget);
     expect(find.text('보유 골드  0 G'), findsOneWidget);
-    await tester.ensureVisible(find.text('돌아가기'));
+    await tester.ensureVisible(find.byType(PixelCloseButton).last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('돌아가기'));
+    await tester.tap(find.byType(PixelCloseButton).last);
     await tester.pumpAndSettle();
     await tester
         .pumpWidget(const GuildApp(key: ValueKey('restart decorations')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('closeQuest')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('길드 메뉴'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('길드 꾸미기'));
+    await tester.tap(find.byTooltip('보유 골드'));
     await tester.pumpAndSettle();
     expect(find.text('별의 수호검 · 치우기'), findsOneWidget);
     expect(find.text('보유 골드  0 G'), findsOneWidget);
@@ -213,16 +216,15 @@ void main() {
     });
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
-    await tester.pump(const Duration(seconds: 12));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpAndSettle();
+    await dismissGreeting(tester);
     await tester.ensureVisible(find.text('퀘스트 실패'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('퀘스트 실패'));
     await tester.pumpAndSettle();
     expect(
-        find.byWidgetPredicate(
-            (w) => w is Text && questFailureMessages['ko']!.contains(w.data)),
+        find.byWidgetPredicate((w) =>
+            w is GuildDialogueText &&
+            questFailureMessages['ko']!.contains(w.text)),
         findsOneWidget);
     expect(
         (jsonDecode((await SharedPreferences.getInstance()).getString('today')!)
@@ -233,34 +235,25 @@ void main() {
     SharedPreferences.setMockInitialValues({'language_override': 'ko'});
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
-    expect(find.textContaining('리얼 월드에서 메인 퀘스트'), findsOneWidget);
+    expect(
+        tester.widget<GuildDialogueText>(find.byType(GuildDialogueText)).text,
+        contains('리얼 월드에서 메인 퀘스트'));
     expect(find.byKey(const ValueKey('openQuest')), findsNothing);
-    for (var i = 0; i < guildTutorial.length - 1; i++) {
-      await tester.ensureVisible(find.text('다음'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('다음'));
+    for (var i = 0; i < guildTutorial.length; i++) {
+      await tester.tap(find.byType(GuildDialogueText));
+      await tester.pump();
+      await tester.tap(find.byType(GuildDialogueText));
+      await tester.pump();
       if (i == tutorialPauseAfterStep) {
-        await tester.pump();
-        expect(find.text('다음'), findsNothing);
+        expect(find.text('?'), findsOneWidget);
         await tester.pump(const Duration(seconds: 3));
       }
       await tester.pumpAndSettle();
     }
-    expect(find.text('모험 시작하기'), findsOneWidget);
-    await tester.ensureVisible(find.text('모험 시작하기'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('모험 시작하기'));
-    await tester.pumpAndSettle();
-    await tester.pump(const Duration(seconds: 12));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('openQuest')), findsOneWidget);
     await tester.pumpWidget(const GuildApp(key: ValueKey('tutorial restart')));
     await tester.pumpAndSettle();
-    expect(find.text('다음'), findsNothing);
-    await tester.pump(const Duration(seconds: 12));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpAndSettle();
+    expect(find.byType(GuildDialogueText), findsNothing);
     expect(find.byKey(const ValueKey('openQuest')), findsOneWidget);
   });
   testWidgets('지원하지 않는 기기 언어는 영어로 표시한다', (tester) async {
@@ -290,7 +283,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('설정'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('日本語'));
+    await tester.tap(find.byKey(const ValueKey('languageSelector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('日本語').last);
     await tester.pumpAndSettle();
     expect(
         Localizations.localeOf(tester.element(find.byType(GuildHome)))
@@ -306,7 +301,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('設定'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('端末の設定に従う'));
+    await tester.tap(find.byKey(const ValueKey('languageSelector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('端末の設定に従う').last);
     await tester.pumpAndSettle();
     expect(
         Localizations.localeOf(tester.element(find.byType(GuildHome)))
@@ -323,7 +320,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(
         find.byWidgetPredicate((w) =>
-            w is Text && greetingTranslations['en']!.values.contains(w.data)),
+            w is GuildDialogueText &&
+            greetingTranslations['en']!.values.contains(w.text)),
         findsOneWidget);
   });
   test('인사와 튜토리얼에 각 언어 번역이 있다', () {
@@ -358,15 +356,11 @@ void main() {
     });
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
-    await tester.pump(const Duration(seconds: 12));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpAndSettle();
+    await dismissGreeting(tester);
     expect(find.text('잠시 하늘을 올려다보기'), findsOneWidget);
     await tester.pumpWidget(const GuildApp(key: ValueKey('legacy restart')));
     await tester.pumpAndSettle();
-    await tester.pump(const Duration(seconds: 12));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpAndSettle();
+    await dismissGreeting(tester);
     expect(find.text('잠시 하늘을 올려다보기'), findsOneWidget);
   });
   for (final (code, _) in [
@@ -382,14 +376,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(
           find.byWidgetPredicate((w) =>
-              w is Text && greetingTranslations[code]!.values.contains(w.data)),
+              w is GuildDialogueText &&
+              greetingTranslations[code]!.values.contains(w.text)),
           findsOneWidget);
-      await tester.pump(const Duration(seconds: 12));
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pumpAndSettle();
-      await tester.pump(const Duration(seconds: 12));
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pumpAndSettle();
+      await dismissGreeting(tester);
       expect(find.byKey(const ValueKey('openQuest')), findsOneWidget);
     });
   }
@@ -401,16 +391,18 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('설정'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Español'));
+    await tester.tap(find.byKey(const ValueKey('languageSelector')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Español'));
+    await tester.tap(find.text('Español').last);
     await tester.pumpAndSettle();
-    expect(find.textContaining('misión principal en el mundo real'),
-        findsOneWidget);
+    expect(
+        tester.widget<GuildDialogueText>(find.byType(GuildDialogueText)).text,
+        contains('misión principal en el mundo real'));
     await tester.pumpWidget(const GuildApp(key: ValueKey('spanish restart')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('misión principal en el mundo real'),
-        findsOneWidget);
+    expect(
+        tester.widget<GuildDialogueText>(find.byType(GuildDialogueText)).text,
+        contains('misión principal en el mundo real'));
   });
   testWidgets('골드 버튼으로 길드 꾸미기를 연다', (tester) async {
     SharedPreferences.setMockInitialValues(
@@ -675,7 +667,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
         find.byWidgetPredicate(
-            (w) => w is Text && guildGreetings.contains(w.data)),
+            (w) => w is GuildDialogueText && guildGreetings.contains(w.text)),
         findsOneWidget);
     final store = await SharedPreferences.getInstance();
     final saved = jsonDecode(store.getString('today')!) as Map;

@@ -1,15 +1,17 @@
 name: little_adventure_guild
 description: A quiet daily adventure guild.
 publish_to: none
-version: 0.1.0+2
+version: 0.1.0+3
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
+  sdk: '>=3.10.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
   shared_preferences: ^2.3.0
+  in_app_purchase: ^3.3.0
+  in_app_purchase_android: ^0.5.3
   flutter_localizations:
     sdk: flutter
 
@@ -34,7 +36,12 @@ flutter:
     - assets/quest_paper_normal.png
     - assets/quest_paper_hard.png
     - assets/decorations/
+    - assets/keeper_idle/
+    - assets/support/small-pixel.png
+    - assets/support/generous-pixel.png
+    - assets/support/special-pixel.png
     - assets/fonts/Galmuri-LICENSE.txt
+    - assets/licenses/MS-Basic-LICENSE.txt
 
 
 

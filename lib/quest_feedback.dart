@@ -1,3 +1,48 @@
+const questIdleMessages = <String, List<String>>{
+  'ko': [
+    '미안해. 오늘 퀘스트는 하나만 준비해뒀어.',
+    '음? 아직도 있네? 한잔하고 갈 텐가?',
+    '오늘의 의뢰서는 다 정리했어. 여기서 쉬어도 좋아.',
+    '길드가 마음에 드나 보군! 편히 있다 가게.',
+    '다음 의뢰는 조금 더 기다려야 해. 차라도 한잔할까?'
+  ],
+  'en': [
+    "Sorry, I only prepared one quest for today.",
+    "Oh, you're still here? Stay for a drink?",
+    "Today's scroll is put away. Feel free to rest here.",
+    "You seem to like the guild! Stay as long as you like.",
+    "The next quest needs a little more time. How about some tea?"
+  ],
+  'ja': [
+    'すまん、今日の依頼は一つだけなんじゃ。',
+    'おや、まだいたのか？ 一杯飲んでいくかい？',
+    '今日の依頼書は片づけたぞ。ここで休んでいくといい。',
+    'ギルドが気に入ったようじゃな！ ゆっくりしていきなさい。',
+    '次の依頼はもう少し待っておくれ。お茶でもどうじゃ？'
+  ],
+  'zh': [
+    '抱歉，今天只准备了一份委托。',
+    '嗯？你还在呀？要不要喝一杯再走？',
+    '今天的委托书已经收好啦。你可以在这里休息。',
+    '看来你很喜欢公会！自在地待一会儿吧。',
+    '下一份委托还要再等一会儿。喝杯茶怎么样？'
+  ],
+  'hi': [
+    'माफ़ करना, आज के लिए मैंने केवल एक खोज तैयार की थी।',
+    'अरे, अभी यहीं हो? कुछ पीकर जाओगे?',
+    'आज की खोज का पर्चा रख दिया है। यहाँ आराम कर सकते हो।',
+    'लगता है तुम्हें गिल्ड पसंद आया! आराम से रुको।',
+    'अगली खोज के लिए थोड़ा इंतज़ार करना होगा। चाय पियोगे?'
+  ],
+  'es': [
+    'Perdona, solo preparé una misión para hoy.',
+    '¿Eh? ¿Sigues aquí? ¿Te quedas a tomar algo?',
+    'Ya guardé la misión de hoy. Puedes descansar aquí.',
+    '¡Parece que te gusta el gremio! Quédate el tiempo que quieras.',
+    'La próxima misión tardará un poco. ¿Una taza de té?'
+  ],
+};
+
 const questSuccessMessages = <String, List<String>>{
   'ko': [
     '오, 하고 왔구만! 자네 이야기를 들으니 나도 기쁘네.',

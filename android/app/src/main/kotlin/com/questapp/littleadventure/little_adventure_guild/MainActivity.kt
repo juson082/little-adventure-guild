@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.media.SoundPool
 import android.location.LocationListener
 import android.location.LocationManager
@@ -21,6 +22,8 @@ class MainActivity : FlutterActivity() {
     private val loadedSounds = mutableSetOf<Int>()
     private val pendingSounds = mutableSetOf<Int>()
     private var effectsVolume = 1f
+    private var musicPlayer: MediaPlayer? = null
+    private var activityResumed = false
     private val activeStreams = mutableSetOf<Int>()
 
     private fun playSound(pool: SoundPool, id: Int) {
@@ -68,6 +71,21 @@ class MainActivity : FlutterActivity() {
                         activeStreams.forEach { pool.setVolume(it, effectsVolume, effectsVolume) }
                         result.success(null)
                     }
+                    "musicVolume" -> {
+                        val volume = ((call.arguments as? Number)?.toFloat() ?: 1f).coerceIn(0f, 1f)
+                        try {
+                            val player = musicPlayer ?: MediaPlayer.create(this, R.raw.guild_bgm)?.also {
+                                it.isLooping = true
+                                musicPlayer = it
+                            }
+                            player?.setVolume(volume, volume)
+                            if (activityResumed && player != null && !player.isPlaying) player.start()
+                        } catch (_: IllegalStateException) {
+                            musicPlayer?.release()
+                            musicPlayer = null
+                        }
+                        result.success(null)
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -100,7 +118,31 @@ class MainActivity : FlutterActivity() {
         loadedSounds.clear()
         pendingSounds.clear()
         activeStreams.clear()
+        musicPlayer?.release()
+        musicPlayer = null
         super.cleanUpFlutterEngine(flutterEngine)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        activityResumed = true
+        try {
+            musicPlayer?.let { if (!it.isPlaying) it.start() }
+        } catch (_: IllegalStateException) {
+            musicPlayer?.release()
+            musicPlayer = null
+        }
+    }
+
+    override fun onPause() {
+        activityResumed = false
+        try {
+            musicPlayer?.let { if (it.isPlaying) it.pause() }
+        } catch (_: IllegalStateException) {
+            musicPlayer?.release()
+            musicPlayer = null
+        }
+        super.onPause()
     }
 
     @Deprecated("Deprecated in Android API")
