@@ -7,6 +7,7 @@ abstract final class GuildAudio {
 
   static void wood() => unawaited(_play('wood'));
   static void gold() => unawaited(_play('gold'));
+  static void question() => unawaited(_play('question'));
   static void reveal({required bool hard}) =>
       unawaited(_play(hard ? 'reveal_hard' : 'reveal_normal'));
   static void setEffectsVolume(double volume) => unawaited(_setVolume(volume));

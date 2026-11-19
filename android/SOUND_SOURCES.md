@@ -2,6 +2,7 @@
 
 - guild_wood.wav: Kenney, Impact Sounds, impactWood_light_001.ogg, CC0 1.0. Trimmed and volume-adjusted. https://kenney.nl/assets/impact-sounds
 - guild_gold.wav: Amarikah (with pennomi), Sack of Gold, gold_sack.wav, CC0 1.0. Edited and volume-adjusted. https://opengameart.org/content/sack-of-gold
+- guild_question.wav: plasterbrain, Cute Question Mark, CC0 1.0. Second sound trimmed and volume-adjusted. https://freesound.org/people/plasterbrain/sounds/396195/
 
 These files are normalized to the same full-clip RMS without clipping.
 

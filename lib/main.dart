@@ -13,6 +13,7 @@ import 'quest_schedule.dart';
 import 'environment_service.dart';
 import 'guild_decorations.dart';
 import 'guild_keeper_idle.dart';
+import 'natural_text.dart';
 import 'hard_quests.dart';
 import 'quest_feedback.dart';
 import 'guild_support.dart';
@@ -454,6 +455,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     if (tutorialStep < guildTutorial.length - 1) {
       if (tutorialStep == tutorialPauseAfterStep) {
         setState(() => tutorialPaused = true);
+        GuildAudio.question();
         tutorialPauseTimer = Timer(const Duration(seconds: 3), () {
           if (mounted) {
             setState(() {
@@ -1076,7 +1078,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   Widget weatherExplanation() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(
+      NaturalText(
         t(
           '주변 날씨를 사용하면 그날에 어울리는 의뢰를 고를 수 있어요. 허용하면 대략적인 위치가 날씨 서비스 MET Norway에 전송됩니다. 앱은 위치를 저장하지 않습니다.',
         ),
@@ -1088,7 +1090,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
         ),
       ),
       const SizedBox(height: 8),
-      Text(
+      NaturalText(
         t('오늘 받은 의뢰는 설정을 바꿔도 바뀌지 않아요.'),
         style: const TextStyle(
           color: brown,
@@ -1289,7 +1291,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text(
+                NaturalText(
                   support
                       ? t('이 작은 모험들이 내일도 이어질 수 있도록, 원한다면 길드에 보급품을 보내주세요.')
                       : t(
@@ -1351,7 +1353,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                               (guildSupport.message != null ||
                                   !guildSupport.available ||
                                   guildSupport.products.length < 3))
-                            Text(
+                            NaturalText(
                               words[guildSupport.message ?? 'unavailable']!,
                               style: const TextStyle(
                                 color: brown,
@@ -1371,7 +1373,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                     },
                   ),
                 ] else ...[
-                  Text(
+                  NaturalText(
                     t('의뢰 접수는 준비 중이에요. 후원 여부는 의뢰 채택에 영향을 주지 않습니다.'),
                     style: TextStyle(color: brown, fontSize: 12, height: 1.6),
                   ),
@@ -1602,18 +1604,9 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
                             const SizedBox(height: 20),
                             if (tutorialPaused)
                               const SizedBox.shrink()
-                            else if (tutorialComplete == false) ...[
-                              Center(
-                                child: Text(
-                                  '${tutorialStep + 1} / ${guildTutorial.length}',
-                                  style: const TextStyle(
-                                    color: Color(0xffc8ae8b),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                            ] else if (error != null) ...[
+                            else if (tutorialComplete == false)
+                              const SizedBox.shrink()
+                            else if (error != null) ...[
                               Text(
                                 error!,
                                 style: const TextStyle(
@@ -1954,15 +1947,8 @@ class _GuildDialogueTextState extends State<GuildDialogueText> {
   }
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: widget.text,
-    child: ExcludeSemantics(
-      child: Text(
-        widget.text.characters.take(visible).toString(),
-        style: widget.style,
-      ),
-    ),
-  );
+  Widget build(BuildContext context) =>
+      NaturalText(widget.text, style: widget.style, visibleCharacters: visible);
 }
 
 class GuildRoomBackground extends StatelessWidget {
@@ -2491,7 +2477,7 @@ class QuestDocument extends StatelessWidget {
                               ),
                               const SizedBox(height: 12),
                             ],
-                            Text(
+                            NaturalText(
                               title,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
@@ -2502,7 +2488,7 @@ class QuestDocument extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 10),
-                            Text(
+                            NaturalText(
                               description,
                               textAlign: TextAlign.center,
                               style: const TextStyle(

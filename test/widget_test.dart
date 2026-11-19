@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:little_adventure_guild/translations.dart';
 import 'package:little_adventure_guild/greeting_translations.dart';
 import 'package:little_adventure_guild/quest_feedback.dart';
+import 'package:little_adventure_guild/natural_text.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,9 +31,13 @@ void main() {
       expect(questSuccessMessages[language], hasLength(5));
       expect(questFailureMessages[language], hasLength(5));
       expect(
-          questSuccessMessages[language]!.every((s) => s.isNotEmpty), isTrue);
+        questSuccessMessages[language]!.every((s) => s.isNotEmpty),
+        isTrue,
+      );
       expect(
-          questFailureMessages[language]!.every((s) => s.isNotEmpty), isTrue);
+        questFailureMessages[language]!.every((s) => s.isNotEmpty),
+        isTrue,
+      );
     }
   });
   testWidgets('퀘스트를 열고 완료한 상태가 다시 열어도 유지된다', (tester) async {
@@ -40,12 +45,13 @@ void main() {
     final playedSounds = <String>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(audio, (call) async {
-      if (call.method == 'play') playedSounds.add(call.arguments as String);
-      return null;
-    });
-    addTearDown(() => TestDefaultBinaryMessengerBinding
-        .instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(audio, null));
+          if (call.method == 'play') playedSounds.add(call.arguments as String);
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(audio, null),
+    );
     final now = DateTime.now();
     final date =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -57,7 +63,7 @@ void main() {
         'quest': 0,
         'catalogVersion': 1,
         'opened': false,
-        'completed': false
+        'completed': false,
       }),
     });
     await tester.pumpWidget(const GuildApp());
@@ -79,8 +85,10 @@ void main() {
         jsonDecode((await SharedPreferences.getInstance()).getString('today')!)
             as Map;
     expect(opened['opened_at_ms'], greaterThanOrEqualTo(tappedAt));
-    expect(opened['opened_at_ms'],
-        lessThanOrEqualTo(DateTime.now().toUtc().millisecondsSinceEpoch));
+    expect(
+      opened['opened_at_ms'],
+      lessThanOrEqualTo(DateTime.now().toUtc().millisecondsSinceEpoch),
+    );
     await tester.tap(find.byKey(const ValueKey('closeQuest')));
     await tester.pump();
     expect(find.byType(QuestDocument), findsNothing);
@@ -89,23 +97,29 @@ void main() {
     expect(find.byType(QuestDocument), findsOneWidget);
     expect(playedSounds, ['reveal_normal']);
     expect(
-        jsonDecode((await SharedPreferences.getInstance()).getString('today')!)[
-            'opened_at_ms'],
-        opened['opened_at_ms']);
+      jsonDecode(
+        (await SharedPreferences.getInstance()).getString('today')!,
+      )['opened_at_ms'],
+      opened['opened_at_ms'],
+    );
     expect(find.text('퀘스트 완료'), findsOneWidget);
     await tester.ensureVisible(find.text('퀘스트 완료'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('퀘스트 완료'));
     await tester.pumpAndSettle();
     expect(
-        find.byWidgetPredicate((w) =>
+      find.byWidgetPredicate(
+        (w) =>
             w is GuildDialogueText &&
-            questSuccessMessages['ko']!.contains(w.text)),
-        findsOneWidget);
+            questSuccessMessages['ko']!.contains(w.text),
+      ),
+      findsOneWidget,
+    );
     expect(
-        (jsonDecode((await SharedPreferences.getInstance()).getString('today')!)
-            as Map)['gold'],
-        10);
+      (jsonDecode((await SharedPreferences.getInstance()).getString('today')!)
+          as Map)['gold'],
+      10,
+    );
     await tester.pumpWidget(const GuildApp(key: ValueKey('restart')));
     await tester.pumpAndSettle();
     await dismissGreeting(tester);
@@ -117,12 +131,13 @@ void main() {
     final playedSounds = <String>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(audio, (call) async {
-      if (call.method == 'play') playedSounds.add(call.arguments as String);
-      return null;
-    });
-    addTearDown(() => TestDefaultBinaryMessengerBinding
-        .instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(audio, null));
+          if (call.method == 'play') playedSounds.add(call.arguments as String);
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(audio, null),
+    );
     final now = DateTime.now();
     final date =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -152,8 +167,10 @@ void main() {
     expect(playedSounds, ['reveal_hard']);
   });
   testWidgets('길드 메뉴에서 안내를 열고 닫는다', (tester) async {
-    SharedPreferences.setMockInitialValues(
-        {'tutorial_complete': true, 'language_override': 'ko'});
+    SharedPreferences.setMockInitialValues({
+      'tutorial_complete': true,
+      'language_override': 'ko',
+    });
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('길드 메뉴'));
@@ -167,7 +184,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('의뢰 제안하기'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('의뢰 접수는 준비 중'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is NaturalText && w.text.contains('의뢰 접수는 준비 중'),
+      ),
+      findsOneWidget,
+    );
   });
   testWidgets('완료 골드로 장식을 사고 다시 실행해도 유지된다', (tester) async {
     final d = DateTime.now();
@@ -177,7 +199,7 @@ void main() {
       'tutorial_complete': true,
       'language_override': 'ko',
       'today':
-          '{"date":"$date","quest":0,"opened":true,"completed":false,"gold":140}'
+          '{"date":"$date","quest":0,"opened":true,"completed":false,"gold":140}',
     });
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
@@ -196,8 +218,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byType(PixelCloseButton).last);
     await tester.pumpAndSettle();
-    await tester
-        .pumpWidget(const GuildApp(key: ValueKey('restart decorations')));
+    await tester.pumpWidget(
+      const GuildApp(key: ValueKey('restart decorations')),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('보유 골드'));
     await tester.pumpAndSettle();
@@ -212,7 +235,7 @@ void main() {
       'tutorial_complete': true,
       'language_override': 'ko',
       'today':
-          '{"date":"$date","quest":0,"opened":true,"completed":false,"gold":20}'
+          '{"date":"$date","quest":0,"opened":true,"completed":false,"gold":20}',
     });
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
@@ -222,30 +245,46 @@ void main() {
     await tester.tap(find.text('퀘스트 실패'));
     await tester.pumpAndSettle();
     expect(
-        find.byWidgetPredicate((w) =>
+      find.byWidgetPredicate(
+        (w) =>
             w is GuildDialogueText &&
-            questFailureMessages['ko']!.contains(w.text)),
-        findsOneWidget);
+            questFailureMessages['ko']!.contains(w.text),
+      ),
+      findsOneWidget,
+    );
     expect(
-        (jsonDecode((await SharedPreferences.getInstance()).getString('today')!)
-            as Map)['gold'],
-        20);
+      (jsonDecode((await SharedPreferences.getInstance()).getString('today')!)
+          as Map)['gold'],
+      20,
+    );
   });
   testWidgets('첫 실행에 길드주인의 안내가 나오고 완료 후 다시 나오지 않는다', (tester) async {
+    const channel = MethodChannel('hvildir/sound_effects');
+    final sounds = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          if (call.method == 'play') sounds.add(call.arguments as String);
+          return null;
+        });
+    addTearDown(() => TestDefaultBinaryMessengerBinding.instance
+        .defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
     SharedPreferences.setMockInitialValues({'language_override': 'ko'});
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     expect(
-        tester.widget<GuildDialogueText>(find.byType(GuildDialogueText)).text,
-        contains('리얼 월드에서 메인 퀘스트'));
+      tester.widget<GuildDialogueText>(find.byType(GuildDialogueText)).text,
+      contains('리얼 월드에서 메인 퀘스트'),
+    );
     expect(find.byKey(const ValueKey('openQuest')), findsNothing);
     for (var i = 0; i < guildTutorial.length; i++) {
+      expect(find.text('${i + 1} / ${guildTutorial.length}'), findsNothing);
       await tester.tap(find.byType(GuildDialogueText));
       await tester.pump();
       await tester.tap(find.byType(GuildDialogueText));
       await tester.pump();
       if (i == tutorialPauseAfterStep) {
         expect(find.text('?'), findsOneWidget);
+        expect(sounds.where((sound) => sound == 'question'), hasLength(1));
         await tester.pump(const Duration(seconds: 3));
       }
       await tester.pumpAndSettle();
@@ -263,9 +302,11 @@ void main() {
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     expect(
-        Localizations.localeOf(tester.element(find.byType(GuildHome)))
-            .languageCode,
-        'en');
+      Localizations.localeOf(
+        tester.element(find.byType(GuildHome)),
+      ).languageCode,
+      'en',
+    );
   });
   testWidgets('언어를 바꾸면 저장되고 기기 설정으로 되돌릴 수 있다', (tester) async {
     tester.binding.platformDispatcher.localesTestValue = [const Locale('ko')];
@@ -276,9 +317,11 @@ void main() {
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     expect(
-        Localizations.localeOf(tester.element(find.byType(GuildHome)))
-            .languageCode,
-        'ko');
+      Localizations.localeOf(
+        tester.element(find.byType(GuildHome)),
+      ).languageCode,
+      'ko',
+    );
     await tester.tap(find.byTooltip('길드 메뉴'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('설정'));
@@ -288,15 +331,19 @@ void main() {
     await tester.tap(find.text('日本語').last);
     await tester.pumpAndSettle();
     expect(
-        Localizations.localeOf(tester.element(find.byType(GuildHome)))
-            .languageCode,
-        'ja');
+      Localizations.localeOf(
+        tester.element(find.byType(GuildHome)),
+      ).languageCode,
+      'ja',
+    );
     await tester.pumpWidget(const GuildApp(key: ValueKey('language restart')));
     await tester.pumpAndSettle();
     expect(
-        Localizations.localeOf(tester.element(find.byType(GuildHome)))
-            .languageCode,
-        'ja');
+      Localizations.localeOf(
+        tester.element(find.byType(GuildHome)),
+      ).languageCode,
+      'ja',
+    );
     await tester.tap(find.byTooltip('ギルドメニュー'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('設定'));
@@ -306,9 +353,11 @@ void main() {
     await tester.tap(find.text('端末の設定に従う').last);
     await tester.pumpAndSettle();
     expect(
-        Localizations.localeOf(tester.element(find.byType(GuildHome)))
-            .languageCode,
-        'ko');
+      Localizations.localeOf(
+        tester.element(find.byType(GuildHome)),
+      ).languageCode,
+      'ko',
+    );
   });
   testWidgets('기기 언어 목록이 비어 있으면 영어를 사용한다', (tester) async {
     tester.binding.platformDispatcher.localesTestValue = [];
@@ -319,20 +368,23 @@ void main() {
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     expect(
-        find.byWidgetPredicate((w) =>
+      find.byWidgetPredicate(
+        (w) =>
             w is GuildDialogueText &&
-            greetingTranslations['en']!.values.contains(w.text)),
-        findsOneWidget);
+            greetingTranslations['en']!.values.contains(w.text),
+      ),
+      findsOneWidget,
+    );
   });
   test('인사와 튜토리얼에 각 언어 번역이 있다', () {
-    final content = [
-      ...guildGreetings,
-      ...guildTutorial,
-    ];
+    final content = [...guildGreetings, ...guildTutorial];
     for (final language in ['en', 'ja', 'zh', 'hi', 'es']) {
       for (final source in content) {
-        expect(translate(language, source), isNot(source),
-            reason: '$language: $source');
+        expect(
+          translate(language, source),
+          isNot(source),
+          reason: '$language: $source',
+        );
       }
     }
   });
@@ -357,11 +409,21 @@ void main() {
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     await dismissGreeting(tester);
-    expect(find.text('잠시 하늘을 올려다보기'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is NaturalText && w.text == '잠시 하늘을 올려다보기',
+      ),
+      findsOneWidget,
+    );
     await tester.pumpWidget(const GuildApp(key: ValueKey('legacy restart')));
     await tester.pumpAndSettle();
     await dismissGreeting(tester);
-    expect(find.text('잠시 하늘을 올려다보기'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is NaturalText && w.text == '잠시 하늘을 올려다보기',
+      ),
+      findsOneWidget,
+    );
   });
   for (final (code, _) in [
     ('zh', '欢迎回来！'),
@@ -375,10 +437,13 @@ void main() {
       await tester.pumpWidget(const GuildApp());
       await tester.pumpAndSettle();
       expect(
-          find.byWidgetPredicate((w) =>
+        find.byWidgetPredicate(
+          (w) =>
               w is GuildDialogueText &&
-              greetingTranslations[code]!.values.contains(w.text)),
-          findsOneWidget);
+              greetingTranslations[code]!.values.contains(w.text),
+        ),
+        findsOneWidget,
+      );
       await dismissGreeting(tester);
       expect(find.byKey(const ValueKey('openQuest')), findsOneWidget);
     });
@@ -396,17 +461,21 @@ void main() {
     await tester.tap(find.text('Español').last);
     await tester.pumpAndSettle();
     expect(
-        tester.widget<GuildDialogueText>(find.byType(GuildDialogueText)).text,
-        contains('misión principal en el mundo real'));
+      tester.widget<GuildDialogueText>(find.byType(GuildDialogueText)).text,
+      contains('misión principal en el mundo real'),
+    );
     await tester.pumpWidget(const GuildApp(key: ValueKey('spanish restart')));
     await tester.pumpAndSettle();
     expect(
-        tester.widget<GuildDialogueText>(find.byType(GuildDialogueText)).text,
-        contains('misión principal en el mundo real'));
+      tester.widget<GuildDialogueText>(find.byType(GuildDialogueText)).text,
+      contains('misión principal en el mundo real'),
+    );
   });
   testWidgets('골드 버튼으로 길드 꾸미기를 연다', (tester) async {
-    SharedPreferences.setMockInitialValues(
-        {'tutorial_complete': true, 'language_override': 'ko'});
+    SharedPreferences.setMockInitialValues({
+      'tutorial_complete': true,
+      'language_override': 'ko',
+    });
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     expect(find.text('작은 모험 길드'), findsNothing);
@@ -425,8 +494,9 @@ void main() {
     }
   });
   for (final complete in [true, false]) {
-    testWidgets(complete ? '어려운 의뢰 성공은 30골드를 준다' : '어려운 의뢰 실패는 보상이 없다',
-        (tester) async {
+    testWidgets(complete ? '어려운 의뢰 성공은 30골드를 준다' : '어려운 의뢰 실패는 보상이 없다', (
+      tester,
+    ) async {
       final now = DateTime.now();
       final date =
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -440,12 +510,17 @@ void main() {
           'catalogVersion': 1,
           'opened': true,
           'completed': false,
-          'gold': 5
+          'gold': 5,
         }),
       });
       await tester.pumpWidget(const GuildApp());
       await tester.pumpAndSettle();
-      expect(find.text(hardQuests.first.$1), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is NaturalText && w.text == hardQuests.first.$1,
+        ),
+        findsOneWidget,
+      );
       expect(find.textContaining('30 G'), findsWidgets);
       expect(find.text('특별 의뢰'), findsNothing);
       final action = find.text(complete ? '퀘스트 완료' : '퀘스트 실패');
@@ -466,12 +541,13 @@ void main() {
     final sounds = <String>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-      if (call.method == 'play') sounds.add(call.arguments as String);
-      return null;
-    });
-    addTearDown(() => TestDefaultBinaryMessengerBinding
-        .instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, null));
+          if (call.method == 'play') sounds.add(call.arguments as String);
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null),
+    );
     final now = DateTime.now();
     final date =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -485,7 +561,7 @@ void main() {
         'catalogVersion': 1,
         'opened': true,
         'completed': false,
-        'gold': 5
+        'gold': 5,
       }),
     });
     await tester.pumpWidget(const GuildApp());
@@ -536,7 +612,7 @@ void main() {
         'completed': false,
         'gold': 0,
         'unlocked': ['sigil', 'banner_dragon', 'crystal'],
-        'active_items': ['sigil', 'crystal']
+        'active_items': ['sigil', 'crystal'],
       }),
     });
     await tester.pumpWidget(const GuildApp());
@@ -577,7 +653,7 @@ void main() {
             .millisecondsSinceEpoch,
         'gold': 73,
         'unlocked': ['sword', 'crystal'],
-        'active_items': ['sword', 'crystal']
+        'active_items': ['sword', 'crystal'],
       }),
     });
     await tester.pumpWidget(const GuildApp());
@@ -608,8 +684,8 @@ void main() {
             'opened_at_ms': now
                 .subtract(const Duration(hours: 23))
                 .toUtc()
-                .millisecondsSinceEpoch
-        })
+                .millisecondsSinceEpoch,
+        }),
       });
       await tester.pumpWidget(GuildApp(key: ValueKey('kept-$opened')));
       await tester.pumpAndSettle();
@@ -630,8 +706,8 @@ void main() {
         'date': '2020-01-01',
         'quest': 7,
         'catalogVersion': 1,
-        'opened': true
-      })
+        'opened': true,
+      }),
     });
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
@@ -666,9 +742,11 @@ void main() {
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     expect(
-        find.byWidgetPredicate(
-            (w) => w is GuildDialogueText && guildGreetings.contains(w.text)),
-        findsOneWidget);
+      find.byWidgetPredicate(
+        (w) => w is GuildDialogueText && guildGreetings.contains(w.text),
+      ),
+      findsOneWidget,
+    );
     final store = await SharedPreferences.getInstance();
     final saved = jsonDecode(store.getString('today')!) as Map;
     expect(saved['quest'], 7);

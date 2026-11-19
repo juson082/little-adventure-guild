@@ -12,11 +12,16 @@ import android.location.LocationManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
     private var soundPool: SoundPool? = null
     private val soundIds = mutableMapOf<String, Int>()
     private val loadedSounds = mutableSetOf<Int>()
@@ -54,6 +59,7 @@ class MainActivity : FlutterActivity() {
         }
         soundIds["wood"] = pool.load(this, R.raw.guild_wood, 1)
         soundIds["gold"] = pool.load(this, R.raw.guild_gold, 1)
+        soundIds["question"] = pool.load(this, R.raw.guild_question, 1)
         soundIds["reveal_normal"] = pool.load(this, R.raw.guild_reveal_normal, 1)
         soundIds["reveal_hard"] = pool.load(this, R.raw.guild_reveal_hard, 1)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "hvildir/sound_effects")

@@ -4,11 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:little_adventure_guild/main.dart';
 import 'package:little_adventure_guild/quest_feedback.dart';
+import 'package:little_adventure_guild/natural_text.dart';
 
 void main() {
   testWidgets('대화 탭은 출력 완료 후 닫고 의뢰를 보여 준다', (tester) async {
-    SharedPreferences.setMockInitialValues(
-        {'tutorial_complete': true, 'language_override': 'ko'});
+    SharedPreferences.setMockInitialValues({
+      'tutorial_complete': true,
+      'language_override': 'ko',
+    });
     await tester.pumpWidget(const GuildApp());
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
@@ -17,7 +20,12 @@ void main() {
     final text = tester.widget<GuildDialogueText>(dialogue).text;
     await tester.tap(dialogue);
     await tester.pump();
-    expect(find.text(text), findsOneWidget);
+    expect(
+      tester
+          .widget<NaturalText>(find.byType(NaturalText).first)
+          .visibleCharacters,
+      text.characters.length,
+    );
     expect(find.byKey(const ValueKey('openQuest')), findsNothing);
     await tester.tap(dialogue);
     await tester.pump();
@@ -42,7 +50,7 @@ void main() {
         'opened_at_ms': now.toUtc().millisecondsSinceEpoch,
         'completed': false,
         'failed': false,
-        'gold': 0
+        'gold': 0,
       }),
     });
     await tester.pumpWidget(const GuildApp());
@@ -60,10 +68,11 @@ void main() {
     await tester.pump(const Duration(minutes: 1));
     await tester.pump();
     expect(
-        questIdleMessages['ko'],
-        contains(tester
-            .widget<GuildDialogueText>(find.byType(GuildDialogueText))
-            .text));
+      questIdleMessages['ko'],
+      contains(
+        tester.widget<GuildDialogueText>(find.byType(GuildDialogueText)).text,
+      ),
+    );
     expect(find.byKey(const ValueKey('openQuest')), findsNothing);
   });
 
@@ -74,8 +83,10 @@ void main() {
   });
 
   testWidgets('메뉴 하단의 라이선스를 열고 X로 닫는다', (tester) async {
-    SharedPreferences.setMockInitialValues(
-        {'tutorial_complete': true, 'language_override': 'ko'});
+    SharedPreferences.setMockInitialValues({
+      'tutorial_complete': true,
+      'language_override': 'ko',
+    });
     await tester.pumpWidget(const GuildApp());
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('길드 메뉴'));
