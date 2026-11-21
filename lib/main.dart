@@ -205,7 +205,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     appVisible = state == AppLifecycleState.resumed;
-    if (appVisible) guildSupport.recoverPurchases();
+    if (appVisible) guildSupport.onAppResumed();
     if (!appVisible) {
       idleTimer?.cancel();
       idlePending = false;
@@ -1406,7 +1406,12 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
     final resolved = completed || failed;
     return Scaffold(
       backgroundColor: const Color(0xff291c15),
-      body: Stack(
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: !tutorialPaused && (tutorialComplete == false || showGreeting)
+            ? advanceDialogue
+            : null,
+        child: Stack(
         key: screenKey,
         children: [
           Positioned.fill(
@@ -1849,6 +1854,7 @@ class _GuildHomeState extends State<GuildHome> with WidgetsBindingObserver {
               child: AbsorbPointer(child: QuestReveal(hard: isHard)),
             ),
         ],
+        ),
       ),
     );
   }

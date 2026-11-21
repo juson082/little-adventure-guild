@@ -18,7 +18,7 @@ void main() {
     final dialogue = find.byType(GuildDialogueText);
     expect(dialogue, findsOneWidget);
     final text = tester.widget<GuildDialogueText>(dialogue).text;
-    await tester.tap(dialogue);
+    await tester.tapAt(const Offset(20, 100));
     await tester.pump();
     expect(
       tester
@@ -27,7 +27,7 @@ void main() {
       text.characters.length,
     );
     expect(find.byKey(const ValueKey('openQuest')), findsNothing);
-    await tester.tap(dialogue);
+    await tester.tapAt(const Offset(20, 500));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(seconds: 3));

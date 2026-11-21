@@ -76,6 +76,18 @@ void main() {
     service.dispose();
   });
 
+  test('returning from the store unlocks buttons but keeps pending payments', () async {
+    final service = GuildSupport(androidForTest: true);
+    service.busy = true;
+    service.onAppResumed();
+    expect(service.busy, isFalse);
+    await service.processUpdatesForTest([update(PurchaseStatus.pending)]);
+    service.onAppResumed();
+    expect(service.busy, isTrue);
+    expect(service.message, 'pending');
+    service.dispose();
+  });
+
   test(
     'unrelated purchases are ignored and support messages are localized',
     () async {

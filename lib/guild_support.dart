@@ -72,8 +72,17 @@ class GuildSupport extends ChangeNotifier {
     }
   }
 
+  void onAppResumed() {
+    if (busy && message != 'pending' && _processing.isEmpty) {
+      busy = false;
+      _changed();
+    }
+    unawaited(recoverPurchases());
+  }
+
   Future<void> refresh() async {
     loading = true;
+    if (message == 'unavailable') message = null;
     _changed();
     try {
       available = await _store.isAvailable();
@@ -85,6 +94,7 @@ class GuildSupport extends ChangeNotifier {
         if (response.error != null) message = 'unavailable';
       } else {
         products = {};
+        message = 'unavailable';
       }
     } catch (_) {
       available = false;
