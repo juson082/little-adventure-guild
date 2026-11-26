@@ -1,7 +1,7 @@
 name: little_adventure_guild
 description: A quiet daily adventure guild.
 publish_to: none
-version: 0.1.0+5
+version: 0.1.0+6
 
 environment:
   sdk: '>=3.10.0 <4.0.0'
